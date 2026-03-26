@@ -229,7 +229,7 @@ export default function MapComponent() {
     };
 
     return (
-        <div className="relative h-full w-full">
+       <div className="relative w-full h-[100dvh]">
 
             {/* 🔍 SEARCH BAR */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-[320px] ">
