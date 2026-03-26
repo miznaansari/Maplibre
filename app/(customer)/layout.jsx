@@ -49,49 +49,38 @@ const geistMono = Geist_Mono({
    METADATA
 ========================= */
 export const metadata = {
-  metadataBase: new URL("https://samad-agency.vercel.app"),
+  metadataBase: new URL("https://your-domain.com"),
 
   title: {
-    default: "Samad Agency | Wholesale Mobile Accessories Supplier",
-    template: "%s | Samad Agency",
+    default: "Find Cafes & Restaurants Near You | MyEats",
+    template: "%s | MyEats",
   },
 
   description:
-    "Samad Agency is a trusted wholesale supplier of mobile accessories including Airpods, Chargers, Data Cables, Handsfree, Neckbands, and Power Banks. High-quality products with reliable delivery across India.",
-
-  applicationName: "Samad Agency",
+    "MyEats by MyEats Pvt Ltd helps you discover the best cafes and restaurants near you using an interactive MapLibre-powered map. Explore menus, locations, and get directions instantly.",
 
   keywords: [
-    "Samad Agency",
-    "Wholesale Mobile Accessories",
-    "Airpods Wholesale",
-    "Mobile Charger Wholesale",
-    "Data Cable Supplier",
-    "Handsfree Wholesale",
-    "Neckband Wholesale",
-    "Power Bank Supplier",
-    "Mobile Accessories Distributor India",
+    "MyEats",
+    "cafes near me",
+    "restaurants near me",
+    "best cafe nearby",
+    "food places near me",
+    "coffee shop near me",
+    "restaurant finder india",
+    "MyEats map app",
   ],
 
-  authors: [{ name: "Samad Agency" }],
-  creator: "Samad Agency",
+  applicationName: "MyEats",
 
-  manifest: "/manifest.webmanifest",
-
-  icons: {
-    icon: [
-      { url: "/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-    ],
-    apple: "/icons/apple-touch-icon.png",
-  },
+  authors: [{ name: "MyEats Pvt Ltd" }],
+  creator: "MyEats Pvt Ltd",
 
   openGraph: {
-    title: "Samad Agency | Wholesale Mobile Accessories Supplier",
+    title: "Find Cafes & Restaurants Near You | MyEats",
     description:
-      "Buy high-quality mobile accessories wholesale including Airpods, Chargers, Data Cables, Handsfree, Neckbands, and Power Banks. Trusted supplier across India.",
-    url: "https://samad-agency.vercel.app",
-    siteName: "Samad Agency",
+      "Discover top-rated cafes and restaurants near your location with MyEats interactive map.",
+    url: "https://your-domain.com",
+    siteName: "MyEats",
     locale: "en_IN",
     type: "website",
   },
@@ -100,8 +89,15 @@ export const metadata = {
     index: true,
     follow: true,
   },
-};
 
+  // 🌍 GEO TAGS
+  other: {
+    "geo.region": "IN",
+    "geo.placename": "India",
+    "geo.position": "26.4499;80.3319",
+    ICBM: "26.4499, 80.3319",
+  },
+};
 /* =========================
    ROOT LAYOUT
 ========================= */
