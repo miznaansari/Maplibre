@@ -546,5 +546,3 @@ enum order_list_status {
   CANCELLED
   REFUNDED
 }
-
-
