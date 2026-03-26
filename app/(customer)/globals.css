@@ -5,13 +5,16 @@
 @theme {
   --max-width-7xl: 1600px;
 }
+html, body {
+  background-color: #0b0b0f;
+}
 .leaflet-container {
-  filter: brightness(1.5) contrast(1);
+  filter: brightness(2.4) contrast(1);
 }
 .leaflet-popup-content {
   color: white !important;
   font-weight: 600;
-  margin:0 !important
+  margin:0 !important 
 }
 
 .leaflet-popup-content-wrapper, .leaflet-popup-tip{

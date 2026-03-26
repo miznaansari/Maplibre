@@ -58,7 +58,7 @@ export const metadata = {
 
   description:
     "MyEats by MyEats Pvt Ltd helps you discover the best cafes and restaurants near you using an interactive MapLibre-powered map. Explore menus, locations, and get directions instantly.",
-
+  themeColor: "#0b0b0f",
   keywords: [
     "MyEats",
     "cafes near me",

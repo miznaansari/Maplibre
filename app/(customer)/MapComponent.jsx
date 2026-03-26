@@ -112,60 +112,60 @@ function ZoomControl() {
 export default function MapComponent() {
     const [cafes, setCafes] = useState([]);
     const [zoom, setZoom] = useState(5);
-      const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [userLocation, setUserLocation] = useState(null);
     useEffect(() => {
-    // ❗ Must be HTTPS (important for iOS Safari)
-    if (location.protocol !== "https:") {
-      setError("Geolocation requires HTTPS");
-      setLoading(false);
-      return;
-    }
+        // ❗ Must be HTTPS (important for iOS Safari)
+        if (location.protocol !== "https:") {
+            setError("Geolocation requires HTTPS");
+            setLoading(false);
+            return;
+        }
 
-    if (!navigator.geolocation) {
-      setError("Geolocation not supported");
-      setLoading(false);
-      return;
-    }
+        if (!navigator.geolocation) {
+            setError("Geolocation not supported");
+            setLoading(false);
+            return;
+        }
 
-    const options = {
-      enableHighAccuracy: true, // better GPS (mobile)
-      timeout: 10000, // 10 sec
-      maximumAge: 0,
-    };
+        const options = {
+            enableHighAccuracy: true, // better GPS (mobile)
+            timeout: 10000, // 10 sec
+            maximumAge: 0,
+        };
 
-    const success = (position) => {
-      setUserLocation({
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      });
-      setLoading(false);
-    };
+        const success = (position) => {
+            setUserLocation({
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+            });
+            setLoading(false);
+        };
 
-    const failure = (err) => {
-      console.log("Location error:", err);
+        const failure = (err) => {
+            console.log("Location error:", err);
 
-      switch (err.code) {
-        case 1:
-          setError("Permission denied");
-          break;
-        case 2:
-          setError("Position unavailable");
-          break;
-        case 3:
-          setError("Timeout");
-          break;
-        default:
-          setError("Unknown error");
-      }
+            switch (err.code) {
+                case 1:
+                    setError("Permission denied");
+                    break;
+                case 2:
+                    setError("Position unavailable");
+                    break;
+                case 3:
+                    setError("Timeout");
+                    break;
+                default:
+                    setError("Unknown error");
+            }
 
-      setLoading(false);
-    };
+            setLoading(false);
+        };
 
-    // ✅ iOS Safari requires user interaction sometimes
-    navigator.geolocation.getCurrentPosition(success, failure, options);
-  }, []);
+        // ✅ iOS Safari requires user interaction sometimes
+        navigator.geolocation.getCurrentPosition(success, failure, options);
+    }, []);
     // 🔍 Search states
     const [search, setSearch] = useState("");
     const [filtered, setFiltered] = useState([]);
@@ -232,15 +232,15 @@ export default function MapComponent() {
         <div className="relative h-full w-full">
 
             {/* 🔍 SEARCH BAR */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-[320px]">
-                <div className="bg-[#111] rounded-xl shadow-lg p-2">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-[320px] ">
+                <div className="bg-[#111] rounded-xl  shadow-lg p-0">
 
                     <input
                         type="text"
                         placeholder="Search cafes..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full bg-transparent outline-none text-white px-2 py-1"
+                        className="w-full bg-transparent outline-none border border-gray-200  text-white px-2 p-2 rounded-xl text-base"
                     />
 
                     {filtered.length > 0 && (
@@ -295,9 +295,8 @@ export default function MapComponent() {
                     </Marker>
                 )}
 
-                {/* 🌙 Dark Map */}
-           <TileLayer
-url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+          <TileLayer
+  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
   attribution="&copy; OpenStreetMap &copy; Carto"
 />
 
