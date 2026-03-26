@@ -296,10 +296,10 @@ export default function MapComponent() {
                 )}
 
                 {/* 🌙 Dark Map */}
-                <TileLayer
-                    url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
-                    attribution="&copy; Stadia Maps"
-                />
+           <TileLayer
+url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+  attribution="&copy; OpenStreetMap &copy; Carto"
+/>
 
                 {/* 🔥 Zoom tracker */}
                 <ZoomTracker setZoom={setZoom} />
