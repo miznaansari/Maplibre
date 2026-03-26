@@ -1,0 +1,77 @@
+name: Deploy Next.js App (sudo untar, www build, custom start)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout source
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Create deployment archive
+      - name: Create deployment archive
+        run: |
+          tar \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --warning=no-file-changed \
+            --ignore-failed-read \
+            -czf app.tar.gz .
+      # 3️⃣ Upload tar to server
+      - name: Upload archive to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SERVER_SSH }}
+          source: "app.tar.gz"
+          target: "/tmp"
+
+      # 4️⃣ Deploy on server
+      - name: Deploy on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SERVER_SSH }}
+          script: |
+            set -e
+            APP_PATH="${{ secrets.SERVER_APP_PATH }}"
+            PORT="${{ secrets.SERVER_PORT }}"
+            TAR_FILE="/tmp/app.tar.gz"
+            START_SCRIPT="/www/server/nodejs/vhost/scripts/theclevar_v2.sh"
+            echo "Stopping running app (port $PORT)"
+            lsof -ti :$PORT | xargs kill -9 2>/dev/null || true
+            echo "Backing up env files"
+            sudo mkdir -p /tmp/env_backup
+            sudo cp $APP_PATH/.env* /tmp/env_backup/ 2>/dev/null || true
+            echo "Cleaning app directory"
+            sudo rm -rf $APP_PATH/*
+            echo "Extracting new code (sudo)"
+            sudo tar -xzf $TAR_FILE -C $APP_PATH
+            echo "Restoring env files"
+            sudo cp /tmp/env_backup/.env* $APP_PATH/ 2>/dev/null || true
+            echo "Fixing ownership & permissions"
+            sudo chown -R www:www $APP_PATH
+            sudo find $APP_PATH -type d -exec chmod 755 {} \;
+            sudo find $APP_PATH -type f -exec chmod 644 {} \;
+            echo "Ensuring npm cache ownership"
+            sudo chown -R www:www /www/server/nodejs/cache || true
+            echo "Running build steps as www"
+            sudo -u www bash << EOF
+            set -e
+            cd $APP_PATH
+            npm install
+            npx prisma generate
+            npm run build
+            EOF
+            echo "Starting app using custom script"
+            sudo -u www bash $START_SCRIPT
+            echo "Deployment completed successfully"

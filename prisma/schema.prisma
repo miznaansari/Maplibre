@@ -1,0 +1,550 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model customer_groups {
+  id         Int               @id @default(autoincrement()) @db.UnsignedInt
+  created_at DateTime          @default(now()) @db.Timestamp(0)
+  updated_at DateTime          @default(now()) @updatedAt @db.Timestamp(0)
+  group_name String
+  is_active  Boolean           @default(true)
+  customers  customer_list[]
+  pricing    product_pricing[]
+}
+
+model customer_list {
+  id                       Int                   @id @default(autoincrement()) @db.UnsignedInt
+  created_at               DateTime              @default(now()) @db.Timestamp(0)
+  updated_at               DateTime              @default(now()) @updatedAt @db.Timestamp(0)
+  company_name             String?
+  customer_group_id        Int?                  @db.UnsignedInt
+  email                    String                @unique
+  first_name               String
+  google_uid               String?               @unique
+  is_active                Boolean               @default(true)
+  is_blocked               Boolean               @default(false)
+  is_deleted               Boolean               @default(false)
+  last_name                String?
+  last_password_updated_at DateTime?
+  password                 String
+  phone                    String?
+  user_name                String?
+  whatsapp                 String?
+  price_tier               PriceTier?
+  image_gallery_id         Int?                  @db.UnsignedInt
+  coupon_usage             coupon_usage[]
+  addresses                customer_address[]
+  group                    customer_groups?      @relation(fields: [customer_group_id], references: [id])
+  image_gallery            image_gallery?        @relation(fields: [image_gallery_id], references: [id])
+  route_logs               customer_route_logs[]
+  sessions                 customer_session[]
+  orders                   order_list[]
+  page_views               page_views[]
+  product_reviews          product_reviews[]
+  wishlists                wishlist[]
+
+  @@index([customer_group_id])
+  @@index([image_gallery_id], map: "customer_list_image_gallery_id_fkey")
+}
+
+model customer_session {
+  id               Int           @id @default(autoincrement()) @db.UnsignedInt
+  customer_list_id Int           @db.UnsignedInt
+  token            String        @db.VarChar(255)
+  token_expiry     DateTime
+  is_expired       Boolean       @default(false)
+  created_at       DateTime      @default(now()) @db.Timestamp(0)
+  customer         customer_list @relation(fields: [customer_list_id], references: [id], onDelete: Cascade)
+
+  @@index([customer_list_id])
+}
+
+model customer_address {
+  id               Int           @id @default(autoincrement()) @db.UnsignedInt
+  customer_list_id Int           @db.UnsignedInt
+  first_name       String
+  last_name        String?
+  company          String?
+  address_1        String
+  address_2        String?
+  city             String
+  country          String
+  postal_code      String
+  phone            String?
+  email            String
+  is_default       Boolean       @default(false)
+  is_deleted       Boolean       @default(false)
+  created_at       DateTime      @default(now()) @db.Timestamp(0)
+  updated_at       DateTime      @updatedAt @db.Timestamp(0)
+  state            String
+  customer         customer_list @relation(fields: [customer_list_id], references: [id], onDelete: Cascade)
+
+  @@index([customer_list_id])
+}
+
+model product_category {
+  id          Int                   @id @default(autoincrement())
+  name        String
+  slug        String
+  path        String                @db.VarChar(500)
+  description String?               @db.Text
+  is_active   Boolean               @default(true)
+  is_deleted  Boolean               @default(false)
+  parent_id   Int?
+  created_at  DateTime              @default(now())
+  updated_at  DateTime              @default(now()) @updatedAt
+  parent      product_category?     @relation("CategoryTree", fields: [parent_id], references: [id])
+  children    product_category[]    @relation("CategoryTree")
+  seo         product_category_seo?
+  products    product_list[]
+
+  @@unique([parent_id, slug])
+  @@index([path])
+}
+
+model product_category_seo {
+  id                  Int              @id @default(autoincrement())
+  product_category_id Int              @unique
+  meta_title          String?
+  meta_description    String?          @db.Text
+  focus_keyword       String?
+  category            product_category @relation(fields: [product_category_id], references: [id], onDelete: Cascade)
+}
+
+model product_list {
+  id                   Int                   @id @default(autoincrement()) @db.UnsignedInt
+  name                 String
+  slug                 String                @unique
+  sku                  String                @unique
+  category_id          Int
+  short_description    String?
+  description          String?               @db.Text
+  regular_price        Float
+  sale_price           Float?
+  stock_qty            Int
+  low_stock_threshold  Int?
+  stepper_value        Int?
+  is_taxable           Boolean               @default(true)
+  is_active            Boolean               @default(true)
+  is_deleted           Boolean               @default(false)
+  created_at           DateTime              @default(now()) @db.Timestamp(0)
+  updated_at           DateTime              @updatedAt @db.Timestamp(0)
+  deleted_at           DateTime?
+  cart_items           customer_cart[]
+  order_items          order_items[]
+  page_views           page_views[]
+  images               product_images[]
+  category             product_category      @relation(fields: [category_id], references: [id])
+  seo                  product_meta_data?
+  pricing              product_pricing[]
+  product_reviews      product_reviews[]
+  variants             product_variant[]
+  tier_product_pricing tier_product_pricing?
+  wishlists            wishlist_product[]
+
+  @@index([category_id], map: "product_list_category_id_fkey")
+}
+
+model product_variant {
+  id              Int             @id @default(autoincrement()) @db.UnsignedInt
+  product_list_id Int             @db.UnsignedInt
+  size            String
+  stock_qty       Int
+  sku             String?         @unique
+  is_deleted      Boolean         @default(false)
+  created_at      DateTime        @default(now()) @db.Timestamp(0)
+  updated_at      DateTime        @updatedAt @db.Timestamp(0)
+  carts           customer_cart[]
+  product         product_list    @relation(fields: [product_list_id], references: [id], onDelete: Cascade)
+
+  @@unique([product_list_id, size, is_deleted])
+}
+
+model product_images {
+  id              Int          @id @default(autoincrement()) @db.UnsignedInt
+  product_list_id Int          @db.UnsignedInt
+  image_url       String
+  url_64          String?
+  url_144         String?
+  url_240         String?
+  url_360         String?
+  url_480         String?
+  url_720         String?
+  url_1080        String?
+  is_variant      Boolean      @default(false)
+  is_primary      Boolean      @default(false)
+  created_at      DateTime     @default(now()) @db.Timestamp(0)
+  updated_at      DateTime     @default(now()) @updatedAt @db.Timestamp(0)
+  is_deleted      Boolean      @default(false)
+  product         product_list @relation(fields: [product_list_id], references: [id], onDelete: Cascade)
+
+  @@index([product_list_id])
+}
+
+model product_meta_data {
+  id               Int          @id @default(autoincrement()) @db.UnsignedInt
+  product_list_id  Int          @unique @db.UnsignedInt
+  meta_title       String?
+  meta_description String?      @db.Text
+  focus_keyword    String?
+  created_at       DateTime     @default(now()) @db.Timestamp(0)
+  updated_at       DateTime     @updatedAt @db.Timestamp(0)
+  product          product_list @relation(fields: [product_list_id], references: [id], onDelete: Cascade)
+}
+
+model product_pricing {
+  id                Int             @id @default(autoincrement()) @db.UnsignedInt
+  product_list_id   Int             @db.UnsignedInt
+  customer_group_id Int             @db.UnsignedInt
+  price             Float
+  created_at        DateTime        @default(now()) @db.Timestamp(0)
+  updated_at        DateTime        @updatedAt @db.Timestamp(0)
+  group             customer_groups @relation(fields: [customer_group_id], references: [id], onDelete: Cascade)
+  product           product_list    @relation(fields: [product_list_id], references: [id], onDelete: Cascade)
+
+  @@unique([product_list_id, customer_group_id])
+  @@index([customer_group_id], map: "product_pricing_customer_group_id_fkey")
+}
+
+model admins {
+  id               Int             @id @default(autoincrement()) @db.UnsignedInt
+  email            String          @unique
+  password         String
+  name             String
+  created_at       DateTime        @default(now())
+  is_deleted       Boolean         @default(false)
+  status           Boolean         @default(true)
+  image_gallery_id Int?            @db.UnsignedInt
+  sessions         admin_session[]
+  image_gallery    image_gallery?  @relation(fields: [image_gallery_id], references: [id])
+
+  @@index([image_gallery_id], map: "admins_image_gallery_id_fkey")
+  @@map("admins")
+}
+
+model admin_session {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  admin_id     Int      @db.UnsignedInt
+  token        String   @db.Text
+  token_expiry DateTime
+  is_expired   Boolean  @default(false)
+  created_at   DateTime @default(now())
+  admin        admins   @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+
+  @@index([admin_id])
+  @@map("admin_session")
+}
+
+model order_list {
+  id                Int               @id @default(autoincrement()) @db.UnsignedInt
+  order_number      String            @unique
+  customer_list_id  Int               @db.UnsignedInt
+  payment_method    String?
+  status            order_list_status @default(PENDING)
+  shipping_address  String
+  billing_address   String
+  sub_total         Decimal           @db.Decimal(10, 2)
+  shipping_amount   Decimal           @db.Decimal(10, 2)
+  tax_amount        Decimal           @db.Decimal(10, 2)
+  total             Decimal           @db.Decimal(10, 2)
+  currency          String
+  delivery_method   DeliveryMethod    @default(PICKUP)
+  is_paypal         Boolean           @default(false)
+  is_purchase_order Boolean           @default(false)
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @default(now()) @updatedAt
+  items             order_items[]
+  customer          customer_list     @relation(fields: [customer_list_id], references: [id])
+  payments          payments[]
+
+  @@index([customer_list_id], map: "order_list_customer_list_id_fkey")
+  @@map("order_list")
+}
+
+model order_items {
+  id              Int          @id @default(autoincrement()) @db.UnsignedInt
+  order_list_id   Int          @db.UnsignedInt
+  product_list_id Int          @db.UnsignedInt
+  sku             String
+  product_title   String
+  unit_price      Decimal      @db.Decimal(10, 2)
+  quantity        Int
+  line_total      Decimal      @db.Decimal(10, 2)
+  order           order_list   @relation(fields: [order_list_id], references: [id], onDelete: Cascade)
+  product         product_list @relation(fields: [product_list_id], references: [id], onDelete: Cascade)
+
+  @@index([order_list_id], map: "order_items_order_list_id_fkey")
+  @@index([product_list_id], map: "order_items_product_list_id_fkey")
+  @@map("order_items")
+}
+
+model customer_cart {
+  id                 Int              @id @default(autoincrement()) @db.UnsignedInt
+  customer_list_id   Int              @db.UnsignedInt
+  product_list_id    Int              @db.UnsignedInt
+  product_variant_id Int?             @db.UnsignedInt
+  quantity           Int              @default(1)
+  is_deleted         Boolean          @default(false)
+  created_at         DateTime         @default(now()) @db.Timestamp(0)
+  updated_at         DateTime         @updatedAt @db.Timestamp(0)
+  product            product_list     @relation(fields: [product_list_id], references: [id], onDelete: Cascade)
+  variant            product_variant? @relation(fields: [product_variant_id], references: [id], onDelete: Cascade)
+
+  @@index([customer_list_id])
+  @@index([product_list_id])
+  @@index([product_variant_id])
+}
+
+model wishlist {
+  id               Int                @id @default(autoincrement()) @db.UnsignedInt
+  customer_list_id Int?               @db.UnsignedInt
+  title            String             @db.VarChar(150)
+  slug             String?            @unique
+  is_public        Boolean            @default(false)
+  is_deleted       Boolean            @default(false)
+  admin_id         Int?               @db.UnsignedInt
+  created_at       DateTime           @default(now()) @db.Timestamp(0)
+  updated_at       DateTime           @updatedAt @db.Timestamp(0)
+  customer         customer_list?     @relation(fields: [customer_list_id], references: [id], onDelete: Cascade)
+  products         wishlist_product[]
+
+  @@index([customer_list_id])
+}
+
+model wishlist_product {
+  id              Int          @id @default(autoincrement()) @db.UnsignedInt
+  wishlist_id     Int          @db.UnsignedInt
+  product_list_id Int          @db.UnsignedInt
+  qty             Int          @default(1)
+  is_deleted      Boolean      @default(false)
+  created_at      DateTime     @default(now()) @db.Timestamp(0)
+  updated_at      DateTime     @updatedAt @db.Timestamp(0)
+  product         product_list @relation(fields: [product_list_id], references: [id], onDelete: Cascade)
+  wishlist        wishlist     @relation(fields: [wishlist_id], references: [id], onDelete: Cascade)
+
+  @@unique([wishlist_id, product_list_id])
+  @@index([wishlist_id])
+  @@index([product_list_id])
+}
+
+model payments {
+  id                Int        @id @default(autoincrement()) @db.UnsignedInt
+  order_id          Int        @db.UnsignedInt
+  provider          String     @db.VarChar(20)
+  provider_order_id String     @db.VarChar(50)
+  provider_txn_id   String     @unique
+  amount            Decimal    @db.Decimal(10, 2)
+  currency          String     @db.VarChar(10)
+  status            String     @db.VarChar(20)
+  raw_response      String?    @db.LongText
+  created_at        DateTime   @default(now()) @db.Timestamp(0)
+  order             order_list @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@unique([order_id, provider_order_id])
+  @@index([provider, provider_order_id])
+  @@index([order_id])
+}
+
+model tier_product_pricing {
+  id              Int          @id @default(autoincrement()) @db.UnsignedInt
+  product_list_id Int          @unique @db.UnsignedInt
+  tier_1_price    Decimal?     @db.Decimal(10, 2)
+  tier_2_price    Decimal?     @db.Decimal(10, 2)
+  tier_3_price    Decimal?     @db.Decimal(10, 2)
+  tier_4_price    Decimal?     @db.Decimal(10, 2)
+  tier_5_price    Decimal?     @db.Decimal(10, 2)
+  tier_6_price    Decimal?     @db.Decimal(10, 2)
+  tier_7_price    Decimal?     @db.Decimal(10, 2)
+  tier_8_price    Decimal?     @db.Decimal(10, 2)
+  tier_9_price    Decimal?     @db.Decimal(10, 2)
+  tier_10_price   Decimal?     @db.Decimal(10, 2)
+  created_at      DateTime     @default(now()) @db.Timestamp(0)
+  updated_at      DateTime     @updatedAt @db.Timestamp(0)
+  product_list    product_list @relation(fields: [product_list_id], references: [id], onDelete: Cascade)
+
+  @@index([product_list_id])
+}
+
+model contact_form {
+  id          Int      @id @default(autoincrement())
+  fullName    String   @db.VarChar(150)
+  email       String   @db.VarChar(255)
+  subject     String?  @db.VarChar(200)
+  companyName String?  @db.VarChar(200)
+  message     String   @db.Text
+  createdAt   DateTime @default(now())
+
+  @@map("contact_form")
+}
+
+model image_gallery {
+  id           Int             @id @default(autoincrement()) @db.UnsignedInt
+  url          String
+  title        String?
+  alt_text     String?
+  caption      String?
+  description  String?
+  is_published Boolean         @default(true)
+  is_primary   Boolean         @default(false)
+  position     Int?            @default(0)
+  original_url String?
+  created_at   DateTime        @default(now())
+  updated_at   DateTime        @updatedAt
+  admins       admins[]
+  customers    customer_list[]
+
+  @@map("image_gallery")
+}
+
+model customer_route_logs {
+  id               Int           @id @default(autoincrement()) @db.UnsignedInt
+  customer_list_id Int           @db.UnsignedInt
+  path             String        @db.VarChar(500)
+  method           String        @db.VarChar(10)
+  user_agent       String?       @db.VarChar(255)
+  ip_address       String?       @db.VarChar(255)
+  created_at       DateTime      @default(now())
+  customer         customer_list @relation(fields: [customer_list_id], references: [id], onDelete: Cascade)
+
+  @@index([customer_list_id])
+  @@index([created_at])
+}
+
+model page_views {
+  id              Int            @id @default(autoincrement()) @db.UnsignedInt
+  page_type       PageType
+  product_list_id Int?           @db.UnsignedInt
+  customer_id     Int?           @db.UnsignedInt
+  ip_address      String?        @db.VarChar(255)
+  user_agent      String?        @db.VarChar(255)
+  created_at      DateTime       @default(now())
+  customer        customer_list? @relation(fields: [customer_id], references: [id])
+  product         product_list?  @relation(fields: [product_list_id], references: [id], onDelete: Cascade)
+
+  @@index([page_type])
+  @@index([product_list_id])
+  @@index([created_at])
+  @@index([customer_id], map: "page_views_customer_id_fkey")
+}
+
+model cafe_list {
+  id        String   @id
+  name      String
+  image     String?
+  lat       Float
+  lng       Float
+  createdAt DateTime @default(now())
+}
+
+model coupon_usage {
+  id            Int           @id @default(autoincrement()) @db.UnsignedInt
+  coupon_id     Int           @db.UnsignedInt
+  customer_id   Int           @db.UnsignedInt
+  order_id      Int?          @db.UnsignedInt
+  used_at       DateTime      @default(now())
+  coupons       coupons       @relation(fields: [coupon_id], references: [id], onDelete: Cascade)
+  customer_list customer_list @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@unique([coupon_id, customer_id])
+  @@index([coupon_id])
+  @@index([customer_id])
+}
+
+model coupons {
+  id              Int                   @id @default(autoincrement()) @db.UnsignedInt
+  code            String                @unique
+  description     String?
+  discount_type   coupons_discount_type
+  discount_value  Float
+  min_order_value Float?
+  max_discount    Float?
+  usage_limit     Int?
+  used_count      Int                   @default(0)
+  is_active       Boolean               @default(true)
+  starts_at       DateTime?
+  expires_at      DateTime?
+  created_at      DateTime              @default(now())
+  updated_at      DateTime
+  coupon_usage    coupon_usage[]
+}
+
+model product_reviews {
+  id              Int             @id @default(autoincrement()) @db.UnsignedInt
+  product_list_id Int             @db.UnsignedInt
+  customer_id     Int             @db.UnsignedInt
+  rating          Int
+  title           String?         @db.VarChar(200)
+  review          String?         @db.Text
+  is_verified     Boolean         @default(false)
+  is_approved     Boolean         @default(false)
+  is_deleted      Boolean         @default(false)
+  created_at      DateTime        @default(now())
+  updated_at      DateTime
+  customer_list   customer_list   @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  product_list    product_list    @relation(fields: [product_list_id], references: [id], onDelete: Cascade)
+  review_images   review_images[]
+
+  @@unique([product_list_id, customer_id])
+  @@index([customer_id])
+  @@index([product_list_id])
+}
+
+model review_images {
+  id              Int             @id @default(autoincrement()) @db.UnsignedInt
+  review_id       Int             @db.UnsignedInt
+  image_url       String          @db.VarChar(500)
+  created_at      DateTime        @default(now())
+  product_reviews product_reviews @relation(fields: [review_id], references: [id], onDelete: Cascade)
+
+  @@index([review_id])
+}
+
+enum DeliveryMethod {
+  PICKUP
+  DELIVERY
+}
+
+enum PriceTier {
+  TIER_1
+  TIER_2
+  TIER_3
+  TIER_4
+  TIER_5
+  TIER_6
+  TIER_7
+  TIER_8
+  TIER_9
+  TIER_10
+}
+
+enum PageType {
+  HOME
+  PRODUCT
+  CATEGORY
+}
+
+enum coupons_discount_type {
+  PERCENTAGE
+  FIXED
+}
+
+enum order_list_status {
+  PLACED
+  CREATED
+  PENDING
+  PAYMENT_FAILED
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+

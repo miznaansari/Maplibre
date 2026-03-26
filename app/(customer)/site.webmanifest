@@ -1,0 +1,26 @@
+{
+  "name": "Samad Agency - Wholesale Mobile Accessories",
+  "short_name": "Samad Agency",
+  "description": "Wholesale supplier of mobile accessories including Airpods, Chargers, Data Cables, Handsfree, Neckbands, and Power Banks across India.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "categories": ["shopping", "business", "ecommerce"],
+  "icons": [
+    {
+      "src": "/icons/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
