@@ -14,6 +14,7 @@ import L from "leaflet";
 import "leaflet.markercluster";
 import "leaflet/dist/leaflet.css";
 import { MapPinIcon } from "@heroicons/react/24/outline";
+import { MoonIcon, SunIcon } from "lucide-react";
 
 // Fix marker issue
 delete L.Icon.Default.prototype._getIconUrl;
@@ -151,12 +152,21 @@ function ZoomControl() {
 export default function MapComponent() {
   const [cafes, setCafes] = useState([]);
   const [loading, setLoading] = useState(true);
-
+const [theme, setTheme] = useState("dark");
   const [search, setSearch] = useState("");
   const [filtered, setFiltered] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+useEffect(() => {
+  const saved = localStorage.getItem("theme");
+  if (saved) setTheme(saved);
+}, []);
 
+const toggleTheme = () => {
+  const newTheme = theme === "dark" ? "light" : "dark";
+  setTheme(newTheme);
+  localStorage.setItem("theme", newTheme);
+};
   // 📍 user location
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -259,7 +269,24 @@ export default function MapComponent() {
           )}
         </div>
       </div>
-
+<div className="absolute bottom-4 left-4 z-[1000]">
+  <button
+    onClick={toggleTheme}
+    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#111]/90 backdrop-blur-md text-white border border-white/10 shadow-lg hover:scale-105 transition-all duration-300"
+  >
+    {theme === "dark" ? (
+      <>
+        <MoonIcon className="w-5 h-5 text-blue-400" />
+        <span className="text-sm">Dark</span>
+      </>
+    ) : (
+      <>
+        <SunIcon className="w-5 h-5 text-yellow-400" />
+        <span className="text-sm">Light</span>
+      </>
+    )}
+  </button>
+</div>
 
       <MapContainer
         center={[22.9734, 78.6569]}
@@ -269,6 +296,7 @@ export default function MapComponent() {
         maxBounds={indiaBounds}
         maxBoundsViscosity={1.0}
         className="h-full w-full"
+          keepBuffer={8} // 🔥 increase buffer
       >
         <FetchOnMove setCafes={setCafes} setLoading={setLoading} />
 
@@ -279,10 +307,15 @@ export default function MapComponent() {
           </Marker>
         )}
 
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        />
-
+<TileLayer
+  url={
+    theme === "dark"
+      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  }
+  updateWhenIdle={true}
+  keepBuffer={12}
+/>
         {selectedLocation && <FlyToLocation {...selectedLocation} />}
 
         <ZoomControl />
