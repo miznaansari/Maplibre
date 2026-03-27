@@ -23,12 +23,10 @@ const indiaBounds = [
   [37.5, 97],
 ];
 
-
-// 🔥 FETCH ON MOVE (OPTIMIZED + LOADER CONTROL)
-function FetchOnMove({ setCafes, setLoading }) {
+// 🔥 FETCH ON MOVE (CORE ENGINE)
+function FetchOnMove({ setCafes }) {
   const map = useMap();
   const timeoutRef = useRef(null);
-  const firstLoad = useRef(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,11 +37,6 @@ function FetchOnMove({ setCafes, setLoading }) {
       const east = bounds.getEast();
       const west = bounds.getWest();
       const zoom = map.getZoom();
-
-      // ✅ only show loader on first load
-      if (firstLoad.current) {
-        setLoading(true);
-      }
 
       try {
         const res = await fetch(
@@ -58,16 +51,8 @@ function FetchOnMove({ setCafes, setLoading }) {
           data.cafes.forEach((c) => mapData.set(c.id, c));
           return Array.from(mapData.values());
         });
-
       } catch (err) {
         console.error("Fetch error:", err);
-      } finally {
-        if (firstLoad.current) {
-          setTimeout(() => {
-            setLoading(false);
-            firstLoad.current = false;
-          }, 400); // smooth fade
-        }
       }
     };
 
@@ -89,13 +74,12 @@ function FetchOnMove({ setCafes, setLoading }) {
       map.off("moveend", handleMove);
       map.off("zoomend", handleMove);
     };
-  }, [map, setCafes, setLoading]);
+  }, []);
 
   return null;
 }
 
-
-// ✈️ Fly animation
+// 🔥 Fly animation
 function FlyToLocation({ lat, lng }) {
   const map = useMap();
 
@@ -103,13 +87,12 @@ function FlyToLocation({ lat, lng }) {
     if (lat && lng) {
       map.flyTo([lat, lng], 14, { duration: 1.5 });
     }
-  }, [lat, lng, map]);
+  }, [lat, lng]);
 
   return null;
 }
 
-
-// 🔍 Zoom Control UI
+// 🔥 Zoom buttons
 function ZoomControl() {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
@@ -123,21 +106,23 @@ function ZoomControl() {
 
   return (
     <div className="absolute bottom-6 right-4 z-[1000]">
-      <div className="bg-[#111]/90 backdrop-blur-md rounded-xl shadow-lg flex flex-col overflow-hidden text-center border border-white/10">
+      <div className="bg-[#111] rounded-xl shadow-lg flex flex-col overflow-hidden text-center">
 
-        <div className="text-white text-xs py-1 border-b border-white/10">
+        {/* 🔥 Zoom Level */}
+        <div className="text-white text-xs py-1 border-b border-[#222]">
           {zoom}
         </div>
 
+        {/* Buttons */}
         <button
           onClick={() => map.zoomIn()}
-          className="px-3 py-2 text-white hover:bg-white/10 transition"
+          className="px-3 py-2 text-white hover:bg-[#222]"
         >
           +
         </button>
         <button
           onClick={() => map.zoomOut()}
-          className="px-3 py-2 text-white hover:bg-white/10 transition"
+          className="px-3 py-2 text-white hover:bg-[#222]"
         >
           -
         </button>
@@ -145,13 +130,8 @@ function ZoomControl() {
     </div>
   );
 }
-
-
-// 🌍 MAIN COMPONENT
 export default function MapComponent() {
   const [cafes, setCafes] = useState([]);
-  const [loading, setLoading] = useState(true);
-
   const [search, setSearch] = useState("");
   const [filtered, setFiltered] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -193,45 +173,13 @@ export default function MapComponent() {
       iconSize: [46, 50],
       iconAnchor: [23, 50],
     });
-    const getFirstImage = (image) => {
-  try {
-    const arr = JSON.parse(image);
-    return arr[0];
-  } catch {
-    return image?.split('","')[0]?.replace('["', '') || image;
-  }
-};
+
   return (
     <div className="relative w-full h-[100dvh]">
 
-      {/* 🔥 GEN-Z LOADER */}
-      {loading && (
-        <div className="absolute inset-0 z-[2000] flex items-center justify-center backdrop-blur-md bg-black/50 transition-opacity duration-500">
-
-          <div className="flex flex-col items-center gap-4">
-
-            {/* Glow Spinner */}
-            <div className="w-14 h-14 rounded-full border-4 border-[#0ea5e9]/30 border-t-[#0ea5e9] animate-spin shadow-[0_0_40px_#0ea5e9]" />
-
-            <p className="text-white text-sm tracking-wide animate-pulse">
-              Finding cafes near you...
-            </p>
-
-            {/* Pulse dots */}
-            <div className="flex gap-1">
-              <div className="w-2 h-2 bg-white rounded-full animate-bounce" />
-              <div className="w-2 h-2 bg-white rounded-full animate-bounce delay-150" />
-              <div className="w-2 h-2 bg-white rounded-full animate-bounce delay-300" />
-            </div>
-
-          </div>
-        </div>
-      )}
-
-
       {/* 🔍 SEARCH */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-[320px]">
-        <div className="bg-[#111]/90 backdrop-blur-md rounded-xl shadow-lg p-2 border border-white/10">
+        <div className="bg-[#111] rounded-xl shadow-lg p-2">
           <input
             type="text"
             placeholder="Search cafes..."
@@ -250,7 +198,7 @@ export default function MapComponent() {
                     setSearch("");
                     setFiltered([]);
                   }}
-                  className="px-2 py-2 hover:bg-white/10 rounded cursor-pointer text-sm text-white transition"
+                  className="px-2 py-2 hover:bg-[#222] rounded cursor-pointer text-sm text-white"
                 >
                   {cafe.name}
                 </div>
@@ -259,7 +207,6 @@ export default function MapComponent() {
           )}
         </div>
       </div>
-
 
       <MapContainer
         center={[22.9734, 78.6569]}
@@ -270,7 +217,8 @@ export default function MapComponent() {
         maxBoundsViscosity={1.0}
         className="h-full w-full"
       >
-        <FetchOnMove setCafes={setCafes} setLoading={setLoading} />
+        {/* 🔥 CORE */}
+        <FetchOnMove setCafes={setCafes} />
 
         {/* 📍 user */}
         {userLocation && (
@@ -295,50 +243,21 @@ export default function MapComponent() {
               icon={getMarkerIcon(cafe.image)}
             >
               <Popup>
-                                <div className="w-[220px] bg-[#0b0b0f] text-white rounded-2xl p-3 shadow-2xl">
+                <div className="text-white">
+                  <p className="font-semibold">{cafe.name}</p>
 
-                                    {/* Title */}
-                                    <h3 className="font-semibold text-sm mb-2">
-                                        {cafe.name}
-                                    </h3>
-                                    {cafe.image && (
-                                        <img
-                                            src={getFirstImage(cafe.image)}
-                                            onError={(e) => {
-                                                e.target.src =
-                                                    "https://cg.a2deats.com/variants/360/gallery_9f70a17b-a215-46d1-85cc-2420fa58db4c.jpeg";
-                                            }}
-                                            className="w-full h-[100px] my-4 object-cover mt-2 rounded-lg"
-                                        />
-                                    )}
-                                    {/* 📍 Open in Google Maps */}
-                                    <button
-                                        onClick={() => {
-                                            const destination = `${cafe.lat},${cafe.lng}`;
-
-                                            if (userLocation) {
-                                                const origin = `${userLocation.lat},${userLocation.lng}`;
-
-                                                window.open(
-                                                    `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`,
-                                                    "_blank"
-                                                );
-                                            } else {
-                                                window.open(
-                                                    `https://www.google.com/maps/search/?api=1&query=${destination}`,
-                                                    "_blank"
-                                                );
-                                            }
-                                        }}
-                                        className="w-full flex items-center justify-center gap-2 bg-yellow-400 text-black font-medium py-2 rounded-xl text-sm hover:bg-yellow-300 transition"
-                                    >
-
-                                        <MapPinIcon className="w-4 h-4" />
-                                        Open in Google Maps
-                                    </button>
-
-                                </div>
-                            </Popup>
+                  <button
+                    onClick={() =>
+                      window.open(
+                        `https://www.google.com/maps/search/?api=1&query=${cafe.lat},${cafe.lng}`
+                      )
+                    }
+                    className="mt-2 bg-yellow-400 text-black px-2 py-1 rounded"
+                  >
+                    Open Map
+                  </button>
+                </div>
+              </Popup>
             </Marker>
           ))}
         </MarkerClusterGroup>

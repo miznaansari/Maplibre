@@ -504,6 +504,46 @@ model review_images {
   @@index([review_id])
 }
 
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model restaurant_detail_v2 {
+  id                       Int      @id @db.UnsignedInt
+  cafe_list_id_eats        Int?     @db.UnsignedInt
+
+  title                    String   @db.VarChar(255)
+  url                      String?  @db.VarChar(255)
+  description              String?  @db.Text
+  timing                   String?  @db.Text
+  address                  String?  @db.Text
+  features                 String?  @db.Text
+
+  instagram_url            String?  @db.VarChar(255)
+  mobile_no                String?  @db.VarChar(255)
+  review                   String?  @db.Text
+
+latitude  Float?
+longitude Float?
+  gallery                  String?  @db.Text
+
+  created_at               DateTime @default(now()) @db.Timestamp(0)
+  updated_at               DateTime @default(now()) @db.Timestamp(0)
+
+  opening_and_closing_time String?  @db.VarChar(255)
+  Website_URL              String?  @db.VarChar(255)
+  price_range              String?  @db.VarChar(100)
+  instagram_name           String?  @db.VarChar(255)
+
+  n8n_processed            Boolean? @default(false)
+  n8n_success              Boolean? @default(false)
+  n8n_failed               Boolean? @default(false)
+  n8n_failed_msg           String?  @db.Text
+
+  is_img_processed         Boolean  @default(false)
+  is_img_valid             Boolean?
+  is_image_filtered        Boolean? @default(false)
+
+  @@map("restaurant_detail_v2") // maps to actual DB table
+}
+
 enum DeliveryMethod {
   PICKUP
   DELIVERY
