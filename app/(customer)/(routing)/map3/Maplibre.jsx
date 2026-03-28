@@ -343,7 +343,7 @@ export default function Maplibre() {
 
         debounceRef.current = setTimeout(() => {
           fetchData(map);
-        }, 600);
+        }, 200);
       });
 
       map.on("zoom", () => {
