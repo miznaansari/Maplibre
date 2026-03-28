@@ -42,6 +42,8 @@ export default function Maplibre() {
         })),
       };
 
+      
+
       const source = map.getSource("cafes");
 
       if (source) {
@@ -90,19 +92,43 @@ export default function Maplibre() {
             "text-color": "#fff",
           },
         });
+        const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" fill="#ef4444" viewBox="0 0 24 24">
+  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+</svg>
+`;
 
-        map.addLayer({
-          id: "unclustered-point",
-          type: "circle",
-          source: "cafes",
-          filter: ["!", ["has", "point_count"]],
-          paint: {
-            "circle-color": "#38bdf8",
-            "circle-radius": 6,
-            "circle-stroke-width": 2,
-            "circle-stroke-color": "#fff",
-          },
-        });
+const img = new Image(40, 40);
+img.src = "data:image/svg+xml;base64," + btoa(svg);
+
+img.onload = () => {
+  map.addImage("hero-pin", img);
+
+  map.addLayer({
+    id: "unclustered-point",
+    type: "symbol",
+    source: "cafes",
+    filter: ["!", ["has", "point_count"]],
+    layout: {
+      "icon-image": "hero-pin",
+      "icon-size": 1,
+      "icon-anchor": "bottom", // 🔥 important fix
+    },
+  });
+};
+
+//      map.addLayer({
+//   id: "unclustered-point",
+//   type: "circle",
+//   source: "cafes",
+//   filter: ["!", ["has", "point_count"]],
+//   paint: {
+//     "circle-color": "#ef4444", // red marker
+//     "circle-radius": 8,
+//     "circle-stroke-width": 2,
+//     "circle-stroke-color": "#fff",
+//   },
+// });
 
         // 🎯 UX interactions
         map.on("click", "clusters", (e) => {
@@ -205,6 +231,7 @@ export default function Maplibre() {
 
     map.on("load", () => {
       fetchData(map);
+      
 
       map.on("moveend", () => {
         debouncedFetch(map);
