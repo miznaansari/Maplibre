@@ -34,7 +34,7 @@ export async function GET(req) {
         AND longitude IS NOT NULL
         AND CAST(latitude AS DECIMAL(10,6)) BETWEEN ${south} AND ${north}
         AND CAST(longitude AS DECIMAL(10,6)) BETWEEN ${west} AND ${east}
-      LIMIT 80
+      LIMIT 2820
     `;
 
     const cafes = restaurants.map((item) => {

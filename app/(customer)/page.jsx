@@ -1,66 +1,64 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   GlobeAsiaAustraliaIcon,
   MapIcon,
 } from "@heroicons/react/24/outline";
 
-// 🚨 Disable SSR
-const MapComponent = dynamic(() => import("./MapComponent"), {
-  ssr: false,
-});
-
-const Maplibre = dynamic(() => import("./Maplibre"), {
-  ssr: false,
-});
-
 export default function Page() {
-  const pathname = usePathname();
-
-  const isMap1 = pathname === "/map1";
-  const isMap2 = pathname === "/map2";
-
   return (
-    <div className="h-screen w-full relative overflow-hidden">
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white">
 
+      {/* 🌟 Hero Title */}
+      <h1 className="text-3xl md:text-5xl font-bold mb-3 text-center">
+        Choose Your Map
+      </h1>
+      <p className="text-white/60 mb-10 text-center">
+        Select your preferred map experience
+      </p>
 
-      {/* 🔥 FLOATING NAV UI */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[3000]">
-        <div className="flex items-center gap-1 p-1 rounded-full 
-        bg-[#111]/80 backdrop-blur-md border border-white/10 shadow-xl">
+      {/* 🗺️ Big Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl px-6">
 
-          {/* MAP 1 */}
-          <Link
-            href="/map1"
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs transition-all
-            ${
-              isMap1
-                ? "bg-white text-black shadow-md"
-                : "text-white hover:bg-white/10"
-            }`}
-          >
-            <GlobeAsiaAustraliaIcon className="w-4 h-4" />
-            Leaflet
-          </Link>
+        {/* 🍃 Leaflet */}
+        <Link
+          href="/map1"
+          className="group p-6 rounded-2xl bg-white/5 border border-white/10 
+          hover:bg-white/10 transition-all duration-300 backdrop-blur-xl shadow-xl"
+        >
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="p-4 rounded-full bg-white/10 group-hover:bg-white/20 transition">
+              <GlobeAsiaAustraliaIcon className="w-8 h-8" />
+            </div>
 
-          {/* MAP 2 */}
-          <Link
-            href="/map2"
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs transition-all
-            ${
-              isMap2
-                ? "bg-white text-black shadow-md"
-                : "text-white hover:bg-white/10"
-            }`}
-          >
-            <MapIcon className="w-4 h-4" />
-            MapLibre
-          </Link>
+            <h2 className="text-xl font-semibold">Leaflet Map</h2>
 
-        </div>
+            <p className="text-sm text-white/60">
+              Lightweight and simple. Great for basic maps and fast loading.
+            </p>
+          </div>
+        </Link>
+
+        {/* 🚀 MapLibre */}
+        <Link
+          href="/map2"
+          className="group p-6 rounded-2xl bg-white/5 border border-white/10 
+          hover:bg-white/10 transition-all duration-300 backdrop-blur-xl shadow-xl"
+        >
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="p-4 rounded-full bg-white/10 group-hover:bg-white/20 transition">
+              <MapIcon className="w-8 h-8" />
+            </div>
+
+            <h2 className="text-xl font-semibold">MapLibre</h2>
+
+            <p className="text-sm text-white/60">
+              High performance vector maps with advanced customization.
+            </p>
+          </div>
+        </Link>
+
       </div>
     </div>
   );
