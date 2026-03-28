@@ -199,52 +199,35 @@ const abortRef = useRef(null);
   // 📡 FETCH DATA
   // ---------------------------
   const fetchData = async (map) => {
-  try {
-    // 🔥 ALWAYS cancel previous request
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
+    try {
+      const bounds = map.getBounds();
 
-    const controller = new AbortController();
-    abortRef.current = controller;
+      const res = await fetch(
+        `/api/map/get?north=${bounds.getNorth()}&south=${bounds.getSouth()}&east=${bounds.getEast()}&west=${bounds.getWest()}`
+      );
 
-    const bounds = map.getBounds();
+      const data = await res.json();
 
-    console.log("API ACCEPTED (LATEST)");
+      const points = data.cafes.map((cafe) => ({
+        type: "Feature",
+        properties: cafe,
+        geometry: {
+          type: "Point",
+          coordinates: [cafe.lng, cafe.lat],
+        },
+      }));
 
-    const res = await fetch(
-      `/api/map/get?north=${bounds.getNorth()}&south=${bounds.getSouth()}&east=${bounds.getEast()}&west=${bounds.getWest()}`,
-      { signal: controller.signal }
-    );
+      clusterRef.current = new Supercluster({
+        radius: 80,
+        maxZoom: 16,
+      }).load(points);
 
-    const data = await res.json();
-
-    // ❌ If this request was aborted → ignore
-    if (controller.signal.aborted) return;
-
-    const points = data.cafes.map((cafe) => ({
-      type: "Feature",
-      properties: cafe,
-      geometry: {
-        type: "Point",
-        coordinates: [cafe.lng, cafe.lat],
-      },
-    }));
-
-    clusterRef.current = new Supercluster({
-      radius: 80,
-      maxZoom: 16,
-    }).load(points);
-
-    updateMarkers(map);
-  } catch (err) {
-    if (err.name === "AbortError") {
-      console.log("OLD REQUEST CANCELLED");
-    } else {
+      updateMarkers(map);
+    } catch (err) {
       console.error(err);
     }
-  }
-};
+  };
+
   // ---------------------------
   // 🗺️ INIT MAP
   // ---------------------------
