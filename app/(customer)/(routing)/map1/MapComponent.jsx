@@ -368,7 +368,7 @@ export default function MapComponent() {
             theme === "dark"
               ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
               // : "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
-              : "/api/map-style"
+              : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           }
           updateWhenIdle={true}
           keepBuffer={12}
