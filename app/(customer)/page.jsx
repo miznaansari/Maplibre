@@ -8,7 +8,7 @@ import {
 
 export default function Page() {
   return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white">
+    <div className="h-[100dvh] w-full flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white">
 
       {/* 🌟 Hero Title */}
       <h1 className="text-3xl md:text-5xl font-bold mb-3 text-center">

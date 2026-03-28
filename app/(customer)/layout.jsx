@@ -126,6 +126,8 @@ export default async function RootLayout({ children }) {
     <html lang="en" className="mobile_mode">
       <body
         className={`
+
+          bg-gradient-to-br from-black via-zinc-900 to-zinc-800
           ${poppins.className}
           ${inter.className}
           ${geistSans.variable}
