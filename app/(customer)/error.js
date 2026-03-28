@@ -32,7 +32,7 @@ export default function Error({ error }) {
 
     if (errorType === "AUTH" && !redirected.current) {
       redirected.current = true;
-      router.replace("/login");
+      router.replace("/");
     }
   }, [error, errorType, router]);
 

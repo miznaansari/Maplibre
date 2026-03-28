@@ -2,6 +2,7 @@
 
 import MarkerClusterGroup from "react-leaflet-cluster";
 import { useEffect, useState, useRef } from "react";
+import { GeoJSON } from "react-leaflet";
 import {
   MapContainer,
   TileLayer,
@@ -9,6 +10,8 @@ import {
   Popup,
   useMap,
 } from "react-leaflet";
+
+import indiaBoundary from "./india.json";
 
 import L from "leaflet";
 import "leaflet.markercluster";
@@ -152,21 +155,21 @@ function ZoomControl() {
 export default function MapComponent() {
   const [cafes, setCafes] = useState([]);
   const [loading, setLoading] = useState(true);
-const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState("dark");
   const [search, setSearch] = useState("");
   const [filtered, setFiltered] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
-useEffect(() => {
-  const saved = localStorage.getItem("theme");
-  if (saved) setTheme(saved);
-}, []);
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved) setTheme(saved);
+  }, []);
 
-const toggleTheme = () => {
-  const newTheme = theme === "dark" ? "light" : "dark";
-  setTheme(newTheme);
-  localStorage.setItem("theme", newTheme);
-};
+  const toggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+  };
   // 📍 user location
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -178,7 +181,7 @@ const toggleTheme = () => {
           lng: pos.coords.longitude,
         });
       },
-      () => {}
+      () => { }
     );
   }, []);
 
@@ -203,14 +206,14 @@ const toggleTheme = () => {
       iconSize: [46, 50],
       iconAnchor: [23, 50],
     });
-    const getFirstImage = (image) => {
-  try {
-    const arr = JSON.parse(image);
-    return arr[0];
-  } catch {
-    return image?.split('","')[0]?.replace('["', '') || image;
-  }
-};
+  const getFirstImage = (image) => {
+    try {
+      const arr = JSON.parse(image);
+      return arr[0];
+    } catch {
+      return image?.split('","')[0]?.replace('["', '') || image;
+    }
+  };
   return (
     <div className="relative w-full h-[100dvh]">
 
@@ -269,24 +272,24 @@ const toggleTheme = () => {
           )}
         </div>
       </div>
-<div className="absolute bottom-4 left-4 z-[1000]">
-  <button
-    onClick={toggleTheme}
-    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#111]/90 backdrop-blur-md text-white border border-white/10 shadow-lg hover:scale-105 transition-all duration-300"
-  >
-    {theme === "dark" ? (
-      <>
-        <MoonIcon className="w-5 h-5 text-blue-400" />
-        <span className="text-sm">Dark</span>
-      </>
-    ) : (
-      <>
-        <SunIcon className="w-5 h-5 text-yellow-400" />
-        <span className="text-sm">Light</span>
-      </>
-    )}
-  </button>
-</div>
+      <div className="absolute bottom-4 left-4 z-[1000]">
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#111]/90 backdrop-blur-md text-white border border-white/10 shadow-lg hover:scale-105 transition-all duration-300"
+        >
+          {theme === "dark" ? (
+            <>
+              <MoonIcon className="w-5 h-5 text-blue-400" />
+              <span className="text-sm">Dark</span>
+            </>
+          ) : (
+            <>
+              <SunIcon className="w-5 h-5 text-yellow-400" />
+              <span className="text-sm">Light</span>
+            </>
+          )}
+        </button>
+      </div>
 
       <MapContainer
         center={[22.9734, 78.6569]}
@@ -296,7 +299,7 @@ const toggleTheme = () => {
         maxBounds={indiaBounds}
         maxBoundsViscosity={1.0}
         className="h-full w-full"
-          keepBuffer={8} // 🔥 increase buffer
+        keepBuffer={8} // 🔥 increase buffer
       >
         <FetchOnMove setCafes={setCafes} setLoading={setLoading} />
 
@@ -307,15 +310,27 @@ const toggleTheme = () => {
           </Marker>
         )}
 
-<TileLayer
-  url={
-    theme === "dark"
-      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-  }
-  updateWhenIdle={true}
-  keepBuffer={12}
-/>
+        <TileLayer
+          url={
+            theme === "dark"
+              ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              // : "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
+              : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          }
+          updateWhenIdle={true}
+          keepBuffer={12}
+        />
+        {/* <GeoJSON
+          data={indiaBoundary}
+          style={{
+            color: "#3d3d3d",
+            weight: 2,
+            opacity: 0.9,
+            fill: false,          // ❌ no fill
+            // dashArray: "4 6",     // 🔹 dotted/dashed border
+          }}
+        /> */}
+
         {selectedLocation && <FlyToLocation {...selectedLocation} />}
 
         <ZoomControl />
@@ -328,50 +343,50 @@ const toggleTheme = () => {
               icon={getMarkerIcon(cafe.image)}
             >
               <Popup>
-                                <div className="w-[220px] bg-[#0b0b0f] text-white rounded-2xl p-3 shadow-2xl">
+                <div className="w-[280px]     bg-[#0b0b0f] text-white rounded-2xl p-3 shadow-2xl">
 
-                                    {/* Title */}
-                                    <h3 className="font-semibold text-sm mb-2">
-                                        {cafe.name}
-                                    </h3>
-                                    {cafe.image && (
-                                        <img
-                                            src={getFirstImage(cafe.image)}
-                                            onError={(e) => {
-                                                e.target.src =
-                                                    "https://cg.a2deats.com/variants/360/gallery_9f70a17b-a215-46d1-85cc-2420fa58db4c.jpeg";
-                                            }}
-                                            className="w-full h-[100px] my-4 object-cover mt-2 rounded-lg"
-                                        />
-                                    )}
-                                    {/* 📍 Open in Google Maps */}
-                                    <button
-                                        onClick={() => {
-                                            const destination = `${cafe.lat},${cafe.lng}`;
+                  {/* Title */}
+                  <h3 className="font-semibold text-sm mb-2">
+                    {cafe.name}
+                  </h3>
+                  {cafe.image && (
+                    <img
+                      src={getFirstImage(cafe.image)}
+                      onError={(e) => {
+                        e.target.src =
+                          "https://cg.a2deats.com/variants/360/gallery_9f70a17b-a215-46d1-85cc-2420fa58db4c.jpeg";
+                      }}
+                      className="w-full h-[100px] my-4 object-cover mt-2 rounded-lg"
+                    />
+                  )}
+                  {/* 📍 Open in Google Maps */}
+                  <button
+                    onClick={() => {
+                      const destination = `${cafe.lat},${cafe.lng}`;
 
-                                            if (userLocation) {
-                                                const origin = `${userLocation.lat},${userLocation.lng}`;
+                      if (userLocation) {
+                        const origin = `${userLocation.lat},${userLocation.lng}`;
 
-                                                window.open(
-                                                    `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`,
-                                                    "_blank"
-                                                );
-                                            } else {
-                                                window.open(
-                                                    `https://www.google.com/maps/search/?api=1&query=${destination}`,
-                                                    "_blank"
-                                                );
-                                            }
-                                        }}
-                                        className="w-full flex items-center justify-center gap-2 bg-yellow-400 text-black font-medium py-2 rounded-xl text-sm hover:bg-yellow-300 transition"
-                                    >
+                        window.open(
+                          `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`,
+                          "_blank"
+                        );
+                      } else {
+                        window.open(
+                          `https://www.google.com/maps/search/?api=1&query=${destination}`,
+                          "_blank"
+                        );
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 bg-yellow-400 text-black font-medium py-2 rounded-xl text-sm hover:bg-yellow-300 transition"
+                  >
 
-                                        <MapPinIcon className="w-4 h-4" />
-                                        Open in Google Maps
-                                    </button>
+                    <MapPinIcon className="w-4 h-4" />
+                    Open in Google Maps
+                  </button>
 
-                                </div>
-                            </Popup>
+                </div>
+              </Popup>
             </Marker>
           ))}
         </MarkerClusterGroup>

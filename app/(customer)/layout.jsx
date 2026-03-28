@@ -102,26 +102,26 @@ export const metadata = {
    ROOT LAYOUT
 ========================= */
 
-  let category = [];
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/first-categories`, {
-      cache: "no-store",
-    });
+let category = [];
+try {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/first-categories`, {
+    cache: "no-store",
+  });
 
-    // Check if response is okay before parsing JSON
-    if (res.ok) {
-      category = await res.json();
-    } else {
-      console.error("Failed to fetch categories:", res.status);
-    }
-  } catch (error) {
-    console.error("Error fetching categories:", error);
+  // Check if response is okay before parsing JSON
+  if (res.ok) {
+    category = await res.json();
+  } else {
+    console.error("Failed to fetch categories:", res.status);
   }
+} catch (error) {
+  console.error("Error fetching categories:", error);
+}
 
 export default async function RootLayout({ children }) {
 
   const isLoggedIn = await requireUser();
-console.log('isLoggedInisLoggedIn',isLoggedIn)
+  console.log('isLoggedInisLoggedIn', isLoggedIn)
   return (
     <html lang="en" className="mobile_mode">
       <body
@@ -134,7 +134,7 @@ console.log('isLoggedInisLoggedIn',isLoggedIn)
         `}
       >
         <CartProvider isLoggedIn={isLoggedIn}>
-  <ClarityInit />
+          <ClarityInit />
           <ToastProvider>
             <CartDrawer isLoggedIn={isLoggedIn} />
             <NextTopLoader showSpinner={false} />
@@ -142,7 +142,7 @@ console.log('isLoggedInisLoggedIn',isLoggedIn)
               {children}</div>
           </ToastProvider>
 
-          <Footer category={category} />
+          {/* <Footer category={category} /> */}
         </CartProvider>
       </body>
     </html>
