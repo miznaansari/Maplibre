@@ -38,8 +38,6 @@ function FetchOnMove({ setCafes, setLoading, setApiLogs }) {
   useEffect(() => {
    
 const fetchData = async () => {
-  if (!map || !map.getBounds) return;
-
   const boundsObj = {
     north: map.getBounds().getNorth(),
     south: map.getBounds().getSouth(),
@@ -48,30 +46,24 @@ const fetchData = async () => {
   };
 
   const zoom = map.getZoom();
+  const requestId = Date.now();
 
-  // 🔥 helper (FIFO push)
-  const pushLog = (log) => {
-    setApiLogs((prev) => [
-      {
-        id: Date.now() + Math.random(), // ✅ unique always
-        ...log,
-      },
-      ...prev.slice(0, 6), // limit logs
-    ]);
-  };
-
-  // 🔥 1. CACHE CHECK
+  // 🔥 1. CHECK INDEXED DB FIRST
   const cacheStart = performance.now();
   const cached = await getCafesInBounds(boundsObj);
   const cacheTime = Math.round(performance.now() - cacheStart);
 
   if (cached.length > 50) {
-    // ✅ CACHE HIT (NEW ENTRY)
-    pushLog({
-      url: "indexedDB",
-      status: "cache-hit",
-      time: cacheTime,
-    });
+    // ✅ CACHE HIT
+    setApiLogs((prev) => [
+      {
+        id: requestId,
+        url: "indexedDB",
+        status: "cache-hit",
+        time: cacheTime,
+      },
+      ...prev.slice(0, 5),
+    ]);
 
     setCafes((prev) => {
       const mapData = new Map(prev.map((c) => [c.id, c]));
@@ -80,27 +72,34 @@ const fetchData = async () => {
     });
 
     setLoading(false);
-    return;
+    return; // 🚀 STOP API CALL
   }
 
-  // ❌ CACHE MISS (NEW ENTRY)
-  pushLog({
-    url: "indexedDB",
-    status: "cache-miss",
-    time: cacheTime,
-  });
+  // ❌ CACHE MISS
+  setApiLogs((prev) => [
+    {
+      id: requestId,
+      url: "indexedDB",
+      status: "cache-miss",
+      time: cacheTime,
+    },
+    ...prev.slice(0, 5),
+  ]);
 
   // 🔥 2. API CALL
   const url = `/api/map/get?north=${boundsObj.north}&south=${boundsObj.south}&east=${boundsObj.east}&west=${boundsObj.west}&zoom=${zoom}`;
 
   const start = performance.now();
 
-  // ⏳ PENDING (NEW ENTRY)
-  pushLog({
-    url: "api/map/get",
-    status: "pending",
-    time: null,
-  });
+  setApiLogs((prev) => [
+    {
+      id: requestId,
+      url: "api/map/get",
+      status: "pending",
+      time: null,
+    },
+    ...prev.slice(0, 5),
+  ]);
 
   try {
     const res = await fetch(url);
@@ -108,12 +107,14 @@ const fetchData = async () => {
 
     const duration = Math.round(performance.now() - start);
 
-    // ✅ SUCCESS (NEW ENTRY — NOT UPDATE)
-    pushLog({
-      url: "api/map/get",
-      status: "success",
-      time: duration,
-    });
+    // ✅ success log
+    setApiLogs((prev) =>
+      prev.map((log) =>
+        log.id === requestId
+          ? { ...log, status: "success", time: duration }
+          : log
+      )
+    );
 
     // 🔥 STORE IN INDEXED DB
     await saveCafes(data.cafes);
@@ -128,27 +129,23 @@ const fetchData = async () => {
   } catch (err) {
     const duration = Math.round(performance.now() - start);
 
-    // ❌ ERROR (NEW ENTRY)
-    pushLog({
-      url: "api/map/get",
-      status: "error",
-      time: duration,
-    });
+    setApiLogs((prev) =>
+      prev.map((log) =>
+        log.id === requestId
+          ? { ...log, status: "error", time: duration }
+          : log
+      )
+    );
 
     console.error(err);
     setLoading(false);
   }
-};    const handleMove = () => {
+};
+    const handleMove = () => {
       clearTimeout(timeoutRef.current);
 
       timeoutRef.current = setTimeout(() => {
-      if (map && map._loaded) {
-  fetchData();
-} else {
-  map.whenReady(() => {
-    fetchData();
-  });
-}
+        fetchData();
       }, 400); // debounce
     };
 
@@ -156,13 +153,7 @@ const fetchData = async () => {
     map.on("zoomend", handleMove);
 
     // initial load
-   if (map && map._loaded) {
-  fetchData();
-} else {
-  map.whenReady(() => {
     fetchData();
-  });
-}
 
     return () => {
       map.off("moveend", handleMove);
