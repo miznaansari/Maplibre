@@ -62,24 +62,27 @@ export default function Maplibre() {
         });
 
         // ✅ CLUSTER CIRCLE
-        map.addLayer({
-          id: "clusters",
-          type: "circle",
-          source: "cafes",
-          filter: ["has", "point_count"],
-          paint: {
-            "circle-color": "#0ea5e9",
-            "circle-radius": [
-              "step",
-              ["get", "point_count"],
-              20,
-              10,
-              30,
-              50,
-              40,
-            ],
-          },
-        });
+       map.addLayer({
+  id: "clusters",
+  type: "circle",
+  source: "cafes",
+  filter: ["has", "point_count"],
+  paint: {
+    "circle-color": "#0ea5e9",
+    "circle-opacity": 0.25, // 🔥 key fix (transparent)
+    "circle-stroke-width": 2,
+    "circle-stroke-color": "#0ea5e9",
+    "circle-radius": [
+      "step",
+      ["get", "point_count"],
+      16,
+      10,
+      22,
+      50,
+      28,
+    ],
+  },
+});
 
         // ✅ COUNT
         map.addLayer({
@@ -92,7 +95,7 @@ export default function Maplibre() {
             "text-size": 13,
           },
           paint: {
-            "text-color": "#fff",
+            "text-color": "#000000",
           },
         });
 
