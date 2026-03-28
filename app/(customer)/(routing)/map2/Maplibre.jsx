@@ -1,238 +1,227 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
-import Supercluster from "supercluster";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 export default function Maplibre() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
-
-  const clusterRef = useRef(null);
-  const markersRef = useRef(new Map());
-  const popupRef = useRef(null);
   const debounceRef = useRef(null);
+
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const API_KEY = process.env.NEXT_PUBLIC_OLAMAP_API_KEY;
 
+  // ✅ Ola style URL
   const styleURL = `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${API_KEY}`;
 
-  // 🟢 GREEN MARKER
-  const createMarkerEl = (image) => {
-    const el = document.createElement("div");
-
-    el.innerHTML = `
-      <div style="
-        width:48px;height:48px;border-radius:50%;
-        overflow:hidden;
-        border:3px solid #22c55e;
-        box-shadow:0 6px 16px rgba(0,0,0,0.25);
-        background:white;
-      ">
-        <img src="${image}" 
-             onerror="this.src='/images/not-found.png'"
-             style="width:100%;height:100%;object-fit:cover"/>
-      </div>
-    `;
-
-    return el;
-  };
-
-  // 🔵 CLUSTER COLLAGE
-  const createClusterEl = (leaves, count) => {
-    const el = document.createElement("div");
-
-    const imgs = leaves.slice(0, 4).map((l) => l.properties.image);
-
-    el.innerHTML = `
-      <div style="
-        width:60px;height:60px;border-radius:50%;
-        overflow:hidden;
-        border:3px solid #0ea5e9;
-        box-shadow:0 8px 20px rgba(0,0,0,0.3);
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        grid-template-rows:1fr 1fr;
-        position:relative;
-        background:white;
-      ">
-        ${imgs
-          .map(
-            (img) =>
-              `<img src="${img}" style="width:100%;height:100%;object-fit:cover"/>`
-          )
-          .join("")}
-        ${
-          count > 4
-            ? `<div style="
-                position:absolute;
-                bottom:4px;
-                right:4px;
-                background:#0ea5e9;
-                color:white;
-                font-size:11px;
-                padding:2px 6px;
-                border-radius:999px;
-                font-weight:600;
-              ">
-                +${count}
-              </div>`
-            : ""
-        }
-      </div>
-    `;
-
-    return el;
-  };
-
-  // 🔁 UPDATE MARKERS
-  const updateMarkers = (map) => {
-    if (!clusterRef.current) return;
+  // 🚀 FETCH DATA
+  const fetchData = async (map) => {
+    if (!map) return;
 
     const bounds = map.getBounds();
-    const zoom = Math.floor(map.getZoom());
+    setLoading(true);
 
-    const clusters = clusterRef.current.getClusters(
-      [
-        bounds.getWest(),
-        bounds.getSouth(),
-        bounds.getEast(),
-        bounds.getNorth(),
-      ],
-      zoom
-    );
-
-    const newMarkers = new Map();
-
-    clusters.forEach((feature) => {
-      const [lng, lat] = feature.geometry.coordinates;
-      const props = feature.properties;
-
-      const id = props.cluster
-        ? `cluster-${props.cluster_id}`
-        : `point-${props.id}`;
-
-      let marker = markersRef.current.get(id);
-
-      if (!marker) {
-        let el;
-
-        if (props.cluster) {
-          const leaves = clusterRef.current.getLeaves(
-            props.cluster_id,
-            4
-          );
-
-          el = createClusterEl(leaves, props.point_count);
-
-          el.addEventListener("click", (e) => {
-            e.stopPropagation();
-
-            const zoom = clusterRef.current.getClusterExpansionZoom(
-              props.cluster_id
-            );
-
-            map.easeTo({
-              center: [lng, lat],
-              zoom,
-              duration: 600,
-            });
-          });
-        } else {
-          el = createMarkerEl(props.image);
-
-          el.addEventListener("click", (e) => {
-            e.stopPropagation();
-
-            if (popupRef.current) popupRef.current.remove();
-
-            const popup = new maplibregl.Popup({ offset: 25 })
-              .setLngLat([lng, lat])
-              .setHTML(`
-                <div style="width:200px;border-radius:12px;overflow:hidden">
-                  <img src="${props.image}" 
-                       style="width:100%;height:120px;object-fit:cover"/>
-                  <div style="padding:10px">
-                    <h4 style="margin:0;font-size:14px;font-weight:600">
-                      ${props.name}
-                    </h4>
-                  </div>
-                </div>
-              `)
-              .addTo(map);
-
-            popupRef.current = popup;
-          });
-        }
-
-        marker = new maplibregl.Marker({ element: el }).setLngLat([
-          lng,
-          lat,
-        ]);
-      }
-
-      newMarkers.set(id, marker);
-
-      if (!markersRef.current.has(id)) {
-        marker.addTo(map);
-      }
-    });
-
-    markersRef.current.forEach((marker, id) => {
-      if (!newMarkers.has(id)) marker.remove();
-    });
-
-    markersRef.current = newMarkers;
-  };
-
-  // 📡 FETCH DATA
-  const fetchData = async (map) => {
     try {
-      const bounds = map.getBounds();
-
-      console.log("API CALLED"); // debug
-
       const res = await fetch(
         `/api/map/get?north=${bounds.getNorth()}&south=${bounds.getSouth()}&east=${bounds.getEast()}&west=${bounds.getWest()}`
       );
 
       const data = await res.json();
 
-      const points = data.cafes.map((cafe) => ({
-        type: "Feature",
-        properties: cafe,
-        geometry: {
-          type: "Point",
-          coordinates: [cafe.lng, cafe.lat],
-        },
-      }));
+      const geojson = {
+        type: "FeatureCollection",
+        features: data.cafes.map((cafe) => ({
+          type: "Feature",
+          properties: {
+            id: cafe.id,
+            name: cafe.name,
+            image: cafe.image || "",
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [cafe.lng, cafe.lat],
+          },
+        })),
+      };
 
-      clusterRef.current = new Supercluster({
-        radius: 80,
-        maxZoom: 16,
-      }).load(points);
+      const source = map.getSource("cafes");
 
-      updateMarkers(map);
+      if (source) {
+        source.setData(geojson); // 🔥 no flicker
+      } else {
+        // ✅ SOURCE
+        map.addSource("cafes", {
+          type: "geojson",
+          data: geojson,
+          cluster: true,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+        });
+
+        // ✅ CLUSTER CIRCLE
+       map.addLayer({
+  id: "clusters",
+  type: "circle",
+  source: "cafes",
+  filter: ["has", "point_count"],
+  paint: {
+    "circle-color": "#0ea5e9",
+    "circle-opacity": 0.25, // 🔥 key fix (transparent)
+    "circle-stroke-width": 2,
+    "circle-stroke-color": "#0ea5e9",
+    "circle-radius": [
+      "step",
+      ["get", "point_count"],
+      16,
+      10,
+      22,
+      50,
+      28,
+    ],
+  },
+});
+
+        // ✅ COUNT
+        map.addLayer({
+          id: "cluster-count",
+          type: "symbol",
+          source: "cafes",
+          filter: ["has", "point_count"],
+          layout: {
+            "text-field": "{point_count_abbreviated}",
+            "text-size": 13,
+          },
+          paint: {
+            "text-color": "#000000",
+          },
+        });
+
+        // 🔥 CUSTOM PIN (FIXED)
+        const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" fill="#ef4444" viewBox="0 0 24 24">
+  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+</svg>
+`;
+
+        const img = new Image(40, 40);
+        img.src = "data:image/svg+xml;base64," + btoa(svg);
+
+        img.onload = () => {
+          if (!map.hasImage("hero-pin")) {
+            map.addImage("hero-pin", img);
+          }
+
+          map.addLayer({
+            id: "unclustered-point",
+            type: "symbol",
+            source: "cafes",
+            filter: ["!", ["has", "point_count"]],
+            layout: {
+              "icon-image": "hero-pin",
+              "icon-size": 1,
+              "icon-anchor": "bottom",
+              "icon-allow-overlap": true, // 🔥 important fix
+            },
+          });
+        };
+
+        // 🎯 CLICK CLUSTER
+        map.on("click", "clusters", (e) => {
+          const features = map.queryRenderedFeatures(e.point, {
+            layers: ["clusters"],
+          });
+
+          const clusterId = features[0].properties.cluster_id;
+
+          map.getSource("cafes").getClusterExpansionZoom(
+            clusterId,
+            (err, zoom) => {
+              if (err) return;
+              map.easeTo({
+                center: features[0].geometry.coordinates,
+                zoom,
+              });
+            }
+          );
+        });
+
+        // 🎯 POPUP
+        map.on("click", "unclustered-point", (e) => {
+          const f = e.features[0];
+          const p = f.properties;
+          const [lng, lat] = f.geometry.coordinates;
+
+          new maplibregl.Popup()
+            .setLngLat([lng, lat])
+            .setHTML(`
+              <div style="width:200px;border-radius:12px;overflow:hidden">
+                ${
+                  p.image
+                    ? `<img src="${p.image}" style="width:100%;height:110px;object-fit:cover"/>`
+                    : ""
+                }
+                <div style="padding:10px">
+                  <h4 style="margin:0;font-size:14px;font-weight:600">${p.name}</h4>
+                  <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank"
+                  style="display:block;margin-top:8px;background:#2563eb;color:#fff;padding:6px;border-radius:6px;font-size:12px;text-align:center;">
+                  Directions
+                  </a>
+                </div>
+              </div>
+            `)
+            .addTo(map);
+        });
+
+        // 🖱️ CURSOR
+        ["clusters", "unclustered-point"].forEach((layer) => {
+          map.on("mouseenter", layer, () => {
+            map.getCanvas().style.cursor = "pointer";
+          });
+          map.on("mouseleave", layer, () => {
+            map.getCanvas().style.cursor = "";
+          });
+        });
+      }
     } catch (err) {
-      console.error("FETCH ERROR:", err);
+      console.error(err);
     }
+
+    setTimeout(() => setLoading(false), 200);
   };
 
-  // 🗺️ INIT
+  // 🧠 DEBOUNCE
+  const debouncedFetch = (map) => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchData(map);
+    }, 300);
+  };
+
+  // 🗺️ MAP INIT
   useEffect(() => {
+    if (mapRef.current) return;
+
     const map = new maplibregl.Map({
       container: mapContainer.current,
       style: styleURL,
+
       center: [77.391, 28.6139],
       zoom: 10,
+
+      // 🔥 MOST IMPORTANT (OLA FIX)
       transformRequest: (url) => {
         if (url.includes("api.olamaps.io")) {
-          return { url: `${url}&api_key=${API_KEY}` };
+          const sep = url.includes("?") ? "&" : "?";
+          return { url: `${url}${sep}api_key=${API_KEY}` };
         }
         return { url };
       },
     });
+
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
 
     mapRef.current = map;
 
@@ -240,20 +229,57 @@ export default function Maplibre() {
       fetchData(map);
 
       map.on("moveend", () => {
-        clearTimeout(debounceRef.current);
-
-        debounceRef.current = setTimeout(() => {
-          fetchData(map);
-        }, 300);
+        debouncedFetch(map);
       });
     });
-
-    return () => {
-      map.remove();
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current.clear();
-    };
   }, []);
 
-  return <div ref={mapContainer} className="h-screen w-full" />;
+  // 🔍 SEARCH
+  const handleSearch = async () => {
+    if (!query) return;
+
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${query}`
+    );
+    const data = await res.json();
+
+    if (data[0]) {
+      mapRef.current.flyTo({
+        center: [parseFloat(data[0].lon), parseFloat(data[0].lat)],
+        zoom: 14,
+      });
+    }
+  };
+
+  return (
+    <div className="relative h-screen w-full">
+      {/* SEARCH */}
+      <div className="absolute top-4 left-4 z-10">
+        <div className="flex gap-2 px-3 py-2 rounded-xl bg-black/70 backdrop-blur border border-white/10">
+          <input
+            className="bg-transparent outline-none text-sm text-white w-[180px]"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search..."
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          />
+          <button
+            onClick={handleSearch}
+            className="px-3 py-1 rounded bg-blue-500 text-white"
+          >
+            Go
+          </button>
+        </div>
+      </div>
+
+      {/* LOADING BAR */}
+      <div
+        className={`absolute top-0 left-0 h-[2px] bg-blue-500 z-20 transition-all ${
+          loading ? "w-full" : "w-0"
+        }`}
+      />
+
+      <div ref={mapContainer} className="h-full w-full" />
+    </div>
+  );
 }
