@@ -7,11 +7,12 @@ import "maplibre-gl/dist/maplibre-gl.css";
 export default function Maplibre() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
+  const debounceRef = useRef(null);
 
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 🚀 Fetch + update GeoJSON
+  // 🚀 Smooth fetch (debounced)
   const fetchData = async (map) => {
     if (!map) return;
 
@@ -41,10 +42,13 @@ export default function Maplibre() {
         })),
       };
 
-      if (map.getSource("cafes")) {
-        map.getSource("cafes").setData(geojson);
+      const source = map.getSource("cafes");
+
+      if (source) {
+        // 🔥 Update WITHOUT flicker
+        source.setData(geojson);
       } else {
-        // 🔥 Add source with clustering
+        // 👉 First time setup
         map.addSource("cafes", {
           type: "geojson",
           data: geojson,
@@ -53,7 +57,6 @@ export default function Maplibre() {
           clusterRadius: 50,
         });
 
-        // 🔵 Cluster circles
         map.addLayer({
           id: "clusters",
           type: "circle",
@@ -74,7 +77,6 @@ export default function Maplibre() {
           },
         });
 
-        // 🔢 Cluster count
         map.addLayer({
           id: "cluster-count",
           type: "symbol",
@@ -83,14 +85,12 @@ export default function Maplibre() {
           layout: {
             "text-field": "{point_count_abbreviated}",
             "text-size": 13,
-            "text-font": ["Open Sans Bold"],
           },
           paint: {
-            "text-color": "#ffffff",
+            "text-color": "#fff",
           },
         });
 
-        // 🔹 Single points
         map.addLayer({
           id: "unclustered-point",
           type: "circle",
@@ -100,17 +100,15 @@ export default function Maplibre() {
             "circle-color": "#38bdf8",
             "circle-radius": 6,
             "circle-stroke-width": 2,
-            "circle-stroke-color": "#ffffff",
+            "circle-stroke-color": "#fff",
           },
         });
 
-        // 🔍 Click cluster → zoom
+        // 🎯 UX interactions
         map.on("click", "clusters", (e) => {
           const features = map.queryRenderedFeatures(e.point, {
             layers: ["clusters"],
           });
-
-          if (!features.length) return;
 
           const clusterId = features[0].properties.cluster_id;
 
@@ -118,127 +116,100 @@ export default function Maplibre() {
             clusterId,
             (err, zoom) => {
               if (err) return;
-
               map.easeTo({
                 center: features[0].geometry.coordinates,
                 zoom,
-                duration: 500,
+                duration: 400,
               });
             }
           );
         });
 
-        // 🔥 Popup for single point
         map.on("click", "unclustered-point", (e) => {
-          const feature = e.features[0];
-          const props = feature.properties;
+          const f = e.features[0];
+          const p = f.properties;
 
           new maplibregl.Popup({ offset: 15 })
-            .setLngLat(feature.geometry.coordinates)
+            .setLngLat(f.geometry.coordinates)
             .setHTML(`
-              <div style="
-                width:200px;
-                border-radius:12px;
-                overflow:hidden;
-                font-family:sans-serif;
-              ">
+              <div style="width:200px;border-radius:12px;overflow:hidden">
                 ${
-                  props.image
-                    ? `<img src="${props.image}" style="width:100%; height:110px; object-fit:cover;" />`
+                  p.image
+                    ? `<img src="${p.image}" style="width:100%;height:110px;object-fit:cover"/>`
                     : ""
                 }
                 <div style="padding:10px">
-                  <h4 style="margin:0;font-size:14px;font-weight:600">
-                    ${props.name}
-                  </h4>
-                  <p style="font-size:12px;color:#666;margin-top:4px">
-                    Cafe · Trending ☕
-                  </p>
+                  <h4 style="margin:0;font-size:14px;font-weight:600">${p.name}</h4>
+                  <p style="font-size:12px;color:#666;margin-top:4px">Cafe ☕</p>
                 </div>
               </div>
             `)
             .addTo(map);
         });
 
-        // 🖱️ Cursor UX
-        map.on("mouseenter", "clusters", () => {
-          map.getCanvas().style.cursor = "pointer";
-        });
-
-        map.on("mouseleave", "clusters", () => {
-          map.getCanvas().style.cursor = "";
-        });
-
-        map.on("mouseenter", "unclustered-point", () => {
-          map.getCanvas().style.cursor = "pointer";
-        });
-
-        map.on("mouseleave", "unclustered-point", () => {
-          map.getCanvas().style.cursor = "";
+        // 🖱️ Cursor smooth
+        ["clusters", "unclustered-point"].forEach((layer) => {
+          map.on("mouseenter", layer, () => {
+            map.getCanvas().style.cursor = "pointer";
+          });
+          map.on("mouseleave", layer, () => {
+            map.getCanvas().style.cursor = "";
+          });
         });
       }
-    } catch (err) {
-      console.error("API error:", err);
+    } catch (e) {
+      console.error(e);
     }
 
-    setLoading(false);
+    setTimeout(() => setLoading(false), 200); // 👈 smooth fade feel
+  };
+
+  // 🧠 Debounce wrapper
+  const debouncedFetch = (map) => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchData(map);
+    }, 300); // 🔥 sweet spot
   };
 
   // 🗺️ Init map
   useEffect(() => {
     if (mapRef.current) return;
 
-    const initMap = () => {
-      const map = new maplibregl.Map({
-        container: mapContainer.current,
-        style: {
-          version: 8,
-          sources: {
-            carto: {
-              type: "raster",
-              tiles: [
-                "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-                "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-                "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-              ],
-              tileSize: 256,
-            },
+    const map = new maplibregl.Map({
+      container: mapContainer.current,
+      style: {
+        version: 8,
+        sources: {
+          carto: {
+            type: "raster",
+            tiles: [
+              "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+            ],
+            tileSize: 256,
           },
-          layers: [
-            {
-              id: "carto-layer",
-              type: "raster",
-              source: "carto",
-            },
-          ],
         },
-        center: [77.4126, 23.2599],
-        zoom: 5,
+        layers: [
+          {
+            id: "base",
+            type: "raster",
+            source: "carto",
+          },
+        ],
+      },
+      center: [77.4, 23.25],
+      zoom: 5,
+    });
+
+    mapRef.current = map;
+
+    map.on("load", () => {
+      fetchData(map);
+
+      map.on("moveend", () => {
+        debouncedFetch(map);
       });
-
-      mapRef.current = map;
-
-      map.on("load", () => {
-        map.resize();
-        fetchData(map);
-
-        // 🔥 fetch on move (debounced feel)
-        map.on("moveend", () => {
-          fetchData(map);
-        });
-      });
-    };
-
-    const interval = setInterval(() => {
-      if (!mapContainer.current) return;
-      const rect = mapContainer.current.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        clearInterval(interval);
-        initMap();
-      }
-    }, 100);
-
-    return () => clearInterval(interval);
+    });
   }, []);
 
   // 🔍 Search
@@ -250,22 +221,20 @@ export default function Maplibre() {
     );
     const data = await res.json();
 
-    if (data.length > 0) {
-      const { lat, lon } = data[0];
-
+    if (data[0]) {
       mapRef.current.flyTo({
-        center: [parseFloat(lon), parseFloat(lat)],
+        center: [parseFloat(data[0].lon), parseFloat(data[0].lat)],
         zoom: 14,
-        essential: true,
+        duration: 1200, // 💨 smooth animation
       });
     }
   };
 
   return (
     <div className="relative h-screen w-full">
-      {/* 🔍 Search UI */}
+      {/* 🔍 Search */}
       <div className="absolute top-4 left-4 z-10">
-        <div className="flex items-center gap-2 px-2 py-2 rounded-xl bg-[#0f0f0f]/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0f0f0f]/80 backdrop-blur-xl border border-white/10 shadow-xl">
           <input
             className="bg-transparent outline-none text-sm text-white placeholder:text-white/40 w-[180px]"
             value={query}
@@ -276,19 +245,19 @@ export default function Maplibre() {
 
           <button
             onClick={handleSearch}
-            className="px-3 py-1.5 rounded-lg text-sm bg-blue-500 hover:bg-blue-600 text-white"
+            className="px-3 py-1.5 rounded-lg text-sm bg-blue-500 hover:bg-blue-600 text-white transition"
           >
             Go
           </button>
         </div>
       </div>
 
-      {/* 🧊 Loader */}
-      {loading && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/60 backdrop-blur-sm">
-          <div className="w-10 h-10 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      )}
+      {/* 🚀 TOP LOADING BAR (no blocking UI) */}
+      <div
+        className={`absolute top-0 left-0 h-[2px] bg-blue-500 z-20 transition-all duration-500 ${
+          loading ? "w-full opacity-100" : "w-0 opacity-0"
+        }`}
+      />
 
       {/* 🗺️ Map */}
       <div ref={mapContainer} className="h-full w-full" />

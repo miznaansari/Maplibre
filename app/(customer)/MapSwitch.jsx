@@ -14,7 +14,7 @@ export default function MapSwitch() {
   const isMap2 = pathname === "/map2";
 
   return (
-    <div className="fixed top-4 right-2  z-[3000]">
+    <div className="fixed bottom-2 left-2  z-[3000]">
       <div className="flex items-center gap-1 p-1 rounded-full 
       bg-[#111]/80 backdrop-blur-md border border-white/10 shadow-xl">
 

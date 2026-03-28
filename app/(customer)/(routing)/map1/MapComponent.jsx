@@ -325,7 +325,7 @@ export default function MapComponent() {
     )}
   </div>
 </div>
-      <div className="absolute bottom-4 left-4 z-[1000]">
+      <div className="absolute top-6 right-7 z-[1000]">
         <button
           onClick={toggleTheme}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#111]/90 backdrop-blur-md text-white border border-white/10 shadow-lg hover:scale-105 transition-all duration-300"
@@ -333,12 +333,12 @@ export default function MapComponent() {
           {theme === "dark" ? (
             <>
               <MoonIcon className="w-5 h-5 text-blue-400" />
-              <span className="text-sm">Dark</span>
+              {/* <span className="text-sm">Dark</span> */}
             </>
           ) : (
             <>
               <SunIcon className="w-5 h-5 text-yellow-400" />
-              <span className="text-sm">Light</span>
+              {/* <span className="text-sm">Light</span> */}
             </>
           )}
         </button>
