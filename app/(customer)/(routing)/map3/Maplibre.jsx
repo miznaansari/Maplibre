@@ -199,16 +199,8 @@ const abortRef = useRef(null);
   // 📡 FETCH DATA
   // ---------------------------
   const fetchData = async (map) => {
-  // 🚫 Skip if already fetching
-  if (isFetchingRef.current) {
-    console.log("API SKIPPED");
-    return;
-  }
-
   try {
-    isFetchingRef.current = true;
-
-    // ❌ cancel previous request if exists
+    // 🔥 ALWAYS cancel previous request
     if (abortRef.current) {
       abortRef.current.abort();
     }
@@ -218,7 +210,7 @@ const abortRef = useRef(null);
 
     const bounds = map.getBounds();
 
-    console.log("API ACCEPTED");
+    console.log("API ACCEPTED (LATEST)");
 
     const res = await fetch(
       `/api/map/get?north=${bounds.getNorth()}&south=${bounds.getSouth()}&east=${bounds.getEast()}&west=${bounds.getWest()}`,
@@ -226,6 +218,9 @@ const abortRef = useRef(null);
     );
 
     const data = await res.json();
+
+    // ❌ If this request was aborted → ignore
+    if (controller.signal.aborted) return;
 
     const points = data.cafes.map((cafe) => ({
       type: "Feature",
@@ -244,12 +239,10 @@ const abortRef = useRef(null);
     updateMarkers(map);
   } catch (err) {
     if (err.name === "AbortError") {
-      console.log("API ABORTED");
+      console.log("OLD REQUEST CANCELLED");
     } else {
       console.error(err);
     }
-  } finally {
-    isFetchingRef.current = false;
   }
 };
   // ---------------------------
