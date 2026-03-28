@@ -29,52 +29,90 @@ const indiaBounds = [
 
 
 // 🔥 FETCH ON MOVE (OPTIMIZED + LOADER CONTROL)
-function FetchOnMove({ setCafes, setLoading }) {
+function FetchOnMove({ setCafes, setLoading, setApiLogs }) {
   const map = useMap();
   const timeoutRef = useRef(null);
   const firstLoad = useRef(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const bounds = map.getBounds();
+   const fetchData = async () => {
+  const bounds = map.getBounds();
 
-      const north = bounds.getNorth();
-      const south = bounds.getSouth();
-      const east = bounds.getEast();
-      const west = bounds.getWest();
-      const zoom = map.getZoom();
+  const north = bounds.getNorth();
+  const south = bounds.getSouth();
+  const east = bounds.getEast();
+  const west = bounds.getWest();
+  const zoom = map.getZoom();
 
-      // ✅ only show loader on first load
-      if (firstLoad.current) {
-        setLoading(true);
-      }
+  const url = `/api/map/get?north=${north}&south=${south}&east=${east}&west=${west}&zoom=${zoom}`;
 
-      try {
-        const res = await fetch(
-          `/api/map/get?north=${north}&south=${south}&east=${east}&west=${west}&zoom=${zoom}`
-        );
+  const start = performance.now();
+  const requestId = Date.now();
 
-        const data = await res.json();
+  if (firstLoad.current) {
+    setLoading(true);
+  }
 
-        // 🔥 smooth merge (no flicker)
-        setCafes((prev) => {
-          const mapData = new Map(prev.map((c) => [c.id, c]));
-          data.cafes.forEach((c) => mapData.set(c.id, c));
-          return Array.from(mapData.values());
-        });
+  // 🔥 log pending
+  setApiLogs((prev) => [
+    {
+      id: requestId,
+      url: "api/map/get",
+      status: "pending",
+      time: null,
+    },
+    ...prev.slice(0, 5),
+  ]);
 
-      } catch (err) {
-        console.error("Fetch error:", err);
-      } finally {
-        if (firstLoad.current) {
-          setTimeout(() => {
-            setLoading(false);
-            firstLoad.current = false;
-          }, 400); // smooth fade
-        }
-      }
-    };
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
 
+    const duration = Math.round(performance.now() - start);
+
+    // success log
+    setApiLogs((prev) =>
+      prev.map((log) =>
+        log.id === requestId
+          ? { ...log, status: "success", time: duration }
+          : log
+      )
+    );
+
+    setCafes((prev) => {
+      const mapData = new Map(prev.map((c) => [c.id, c]));
+      data.cafes.forEach((c) => mapData.set(c.id, c));
+      return Array.from(mapData.values());
+    });
+
+    // ✅ STOP LOADER
+    if (firstLoad.current) {
+      setTimeout(() => {
+        setLoading(false);
+        firstLoad.current = false;
+      }, 400);
+    }
+
+  } catch (err) {
+    const duration = Math.round(performance.now() - start);
+
+    setApiLogs((prev) =>
+      prev.map((log) =>
+        log.id === requestId
+          ? { ...log, status: "error", time: duration }
+          : log
+      )
+    );
+
+    // ❗ important fallback
+    if (firstLoad.current) {
+      setLoading(false);
+      firstLoad.current = false;
+    }
+
+    console.error(err);
+  }
+};
     const handleMove = () => {
       clearTimeout(timeoutRef.current);
 
@@ -154,6 +192,7 @@ function ZoomControl() {
 // 🌍 MAIN COMPONENT
 export default function MapComponent() {
   const [cafes, setCafes] = useState([]);
+  const [apiLogs, setApiLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState("dark");
   const [search, setSearch] = useState("");
@@ -216,7 +255,22 @@ export default function MapComponent() {
   };
   return (
     <div className="relative w-full h-[100dvh]">
-
+{/* 🔥 API DEBUG OVERLAY */}
+<div className="absolute top-4 left-4 z-[3000] space-y-2">
+  {apiLogs.map((log) => (
+    <div
+      key={log.id}
+      className={`px-3 py-1 rounded-md text-xs font-mono shadow-lg backdrop-blur-md border
+        ${log.status === "pending" && "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"}
+        ${log.status === "success" && "bg-green-500/20 text-green-300 border-green-500/30"}
+        ${log.status === "error" && "bg-red-500/20 text-red-300 border-red-500/30"}
+      `}
+    >
+      {log.url} → {log.status}
+      {log.time && ` (${log.time}ms)`}
+    </div>
+  ))}
+</div>
       {/* 🔥 GEN-Z LOADER */}
       {loading && (
         <div className="absolute inset-0 z-[2000] flex items-center justify-center backdrop-blur-md bg-black/50 transition-opacity duration-500">
@@ -354,7 +408,11 @@ export default function MapComponent() {
         className="h-full w-full"
         keepBuffer={8} // 🔥 increase buffer
       >
-        <FetchOnMove setCafes={setCafes} setLoading={setLoading} />
+      <FetchOnMove 
+  setCafes={setCafes} 
+  setLoading={setLoading} 
+  setApiLogs={setApiLogs}
+/>
 
         {/* 📍 user */}
         {userLocation && (
