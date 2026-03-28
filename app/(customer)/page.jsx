@@ -37,6 +37,10 @@ export default function Page() {
 
             <h2 className="text-base md:text-xl font-semibold">
               Leaflet Map
+              <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-white text-black">
+                             IndexedDB 
+
+              </span>
             </h2>
 
             <p className="text-xs md:text-sm text-white/60 leading-relaxed">
@@ -82,7 +86,12 @@ export default function Page() {
             <h2 className="text-base md:text-xl font-semibold">
              MapLibre + Ola <br />
               <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-white text-black">
-                            Image Markers
+                            Image Markers  
+
+              </span>
+              <br />
+               <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-white text-black">
+                            IndexedDB 
 
               </span>
             </h2>
