@@ -360,55 +360,48 @@ export default function Maplibre() {
 
   return (
     <>
-    <div className="absolute top-2 left-2 z-[9999] flex flex-col gap-1 max-h-[200px] overflow-y-auto max-w-[85vw] sm:max-w-sm">
-  {apiLogs.map((log) => (
-    <div
-      key={log.id}
-      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] sm:text-xs font-mono
-      bg-white/85 text-gray-800 backdrop-blur-md
-      border border-black/10 shadow-sm"
-    >
-      {/* 🔹 Status Dot */}
-      <span
-        className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full
-        ${log.status === "pending" && "bg-yellow-500"}
-        ${log.status === "success" && "bg-green-500"}
-        ${log.status === "error" && "bg-red-500"}
-        ${log.status === "cache-hit" && "bg-blue-500"}
-        ${log.status === "cache-miss" && "bg-purple-500"}
-      `}
-      />
+      <div className="absolute top-4 left-4 z-[9999] flex flex-col gap-2 max-h-[300px] overflow-y-auto">
+        {apiLogs.map((log) => (
+          <div
+            key={log.id}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono
+        bg-white/90 text-gray-800 backdrop-blur-md
+        border border-black/10 shadow-sm"
+          >
+            {/* 🔹 Status Dot */}
+            <span
+              className={`w-2 h-2 rounded-full
+          ${log.status === "pending" && "bg-yellow-500"}
+          ${log.status === "success" && "bg-green-500"}
+          ${log.status === "error" && "bg-red-500"}
+          ${log.status === "cache-hit" && "bg-blue-500"}
+          ${log.status === "cache-miss" && "bg-purple-500"}
+        `}
+            />
 
-      {/* 🔹 URL (truncate for mobile) */}
-      <span className="opacity-70 truncate max-w-[90px] sm:max-w-[160px]">
-        {log.url}
-      </span>
+            <span className="opacity-70">{log.url}</span>
+            <span className="opacity-40">→</span>
 
-      {/* 🔹 Arrow (hidden on mobile) */}
-      <span className="hidden sm:inline opacity-40">→</span>
+            <span
+              className={`font-semibold
+          ${log.status === "pending" && "text-yellow-700"}
+          ${log.status === "success" && "text-green-700"}
+          ${log.status === "error" && "text-red-700"}
+          ${log.status === "cache-hit" && "text-blue-700"}
+          ${log.status === "cache-miss" && "text-purple-700"}
+        `}
+            >
+              {log.status.replace("-", " ")}
+            </span>
 
-      {/* 🔹 Status */}
-      <span
-        className={`font-semibold capitalize
-        ${log.status === "pending" && "text-yellow-700"}
-        ${log.status === "success" && "text-green-700"}
-        ${log.status === "error" && "text-red-700"}
-        ${log.status === "cache-hit" && "text-blue-700"}
-        ${log.status === "cache-miss" && "text-purple-700"}
-      `}
-      >
-        {log.status.replace("-", " ")}
-      </span>
-
-      {/* 🔹 Time */}
-      {log.time && (
-        <span className="ml-auto text-gray-500 text-[9px] sm:text-[11px]">
-          {log.time}ms
-        </span>
-      )}
-    </div>
-  ))}
-</div>
+            {log.time && (
+              <span className="ml-auto text-gray-500 text-[11px]">
+                {log.time}ms
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
       <div ref={mapContainer} className="h-screen w-full" />;
 
     </>);
