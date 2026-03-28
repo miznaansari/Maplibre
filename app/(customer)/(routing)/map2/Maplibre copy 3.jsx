@@ -12,12 +12,7 @@ export default function Maplibre() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const API_KEY = process.env.NEXT_PUBLIC_OLAMAP_API_KEY;
-
-  // ✅ Ola style URL
-  const styleURL = `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${API_KEY}`;
-
-  // 🚀 FETCH DATA
+  // 🚀 Smooth fetch (debounced)
   const fetchData = async (map) => {
     if (!map) return;
 
@@ -47,12 +42,15 @@ export default function Maplibre() {
         })),
       };
 
+      
+
       const source = map.getSource("cafes");
 
       if (source) {
-        source.setData(geojson); // 🔥 no flicker
+        // 🔥 Update WITHOUT flicker
+        source.setData(geojson);
       } else {
-        // ✅ SOURCE
+        // 👉 First time setup
         map.addSource("cafes", {
           type: "geojson",
           data: geojson,
@@ -61,7 +59,6 @@ export default function Maplibre() {
           clusterRadius: 50,
         });
 
-        // ✅ CLUSTER CIRCLE
         map.addLayer({
           id: "clusters",
           type: "circle",
@@ -78,10 +75,10 @@ export default function Maplibre() {
               50,
               40,
             ],
+            "circle-opacity": 0.85,
           },
         });
 
-        // ✅ COUNT
         map.addLayer({
           id: "cluster-count",
           type: "symbol",
@@ -95,37 +92,45 @@ export default function Maplibre() {
             "text-color": "#fff",
           },
         });
-
-        // 🔥 CUSTOM PIN (FIXED)
         const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" fill="#ef4444" viewBox="0 0 24 24">
   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
 </svg>
 `;
 
-        const img = new Image(40, 40);
-        img.src = "data:image/svg+xml;base64," + btoa(svg);
+const img = new Image(40, 40);
+img.src = "data:image/svg+xml;base64," + btoa(svg);
 
-        img.onload = () => {
-          if (!map.hasImage("hero-pin")) {
-            map.addImage("hero-pin", img);
-          }
+img.onload = () => {
+  map.addImage("hero-pin", img);
 
-          map.addLayer({
-            id: "unclustered-point",
-            type: "symbol",
-            source: "cafes",
-            filter: ["!", ["has", "point_count"]],
-            layout: {
-              "icon-image": "hero-pin",
-              "icon-size": 1,
-              "icon-anchor": "bottom",
-              "icon-allow-overlap": true, // 🔥 important fix
-            },
-          });
-        };
+  map.addLayer({
+    id: "unclustered-point",
+    type: "symbol",
+    source: "cafes",
+    filter: ["!", ["has", "point_count"]],
+    layout: {
+      "icon-image": "hero-pin",
+      "icon-size": 1,
+      "icon-anchor": "bottom", // 🔥 important fix
+    },
+  });
+};
 
-        // 🎯 CLICK CLUSTER
+//      map.addLayer({
+//   id: "unclustered-point",
+//   type: "circle",
+//   source: "cafes",
+//   filter: ["!", ["has", "point_count"]],
+//   paint: {
+//     "circle-color": "#ef4444", // red marker
+//     "circle-radius": 8,
+//     "circle-stroke-width": 2,
+//     "circle-stroke-color": "#fff",
+//   },
+// });
+
+        // 🎯 UX interactions
         map.on("click", "clusters", (e) => {
           const features = map.queryRenderedFeatures(e.point, {
             layers: ["clusters"],
@@ -140,39 +145,60 @@ export default function Maplibre() {
               map.easeTo({
                 center: features[0].geometry.coordinates,
                 zoom,
+                duration: 400,
               });
             }
           );
         });
 
-        // 🎯 POPUP
-        map.on("click", "unclustered-point", (e) => {
-          const f = e.features[0];
-          const p = f.properties;
-          const [lng, lat] = f.geometry.coordinates;
+       map.on("click", "unclustered-point", (e) => {
+  const f = e.features[0];
+  const p = f.properties;
 
-          new maplibregl.Popup()
-            .setLngLat([lng, lat])
-            .setHTML(`
-              <div style="width:200px;border-radius:12px;overflow:hidden">
-                ${
-                  p.image
-                    ? `<img src="${p.image}" style="width:100%;height:110px;object-fit:cover"/>`
-                    : ""
-                }
-                <div style="padding:10px">
-                  <h4 style="margin:0;font-size:14px;font-weight:600">${p.name}</h4>
-                  <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank"
-                  style="display:block;margin-top:8px;background:#2563eb;color:#fff;padding:6px;border-radius:6px;font-size:12px;text-align:center;">
-                  Directions
-                  </a>
-                </div>
-              </div>
-            `)
-            .addTo(map);
-        });
+  const [lng, lat] = f.geometry.coordinates;
 
-        // 🖱️ CURSOR
+  new maplibregl.Popup({ offset: 15 })
+    .setLngLat([lng, lat])
+    .setHTML(`
+      <div style="width:200px;border-radius:12px;overflow:hidden">
+        ${
+          p.image
+            ? `<img src="${p.image}" style="width:100%;height:110px;object-fit:cover"/>`
+            : ""
+        }
+        <div style="padding:10px">
+          <h4 style="margin:0;font-size:14px;font-weight:600">${p.name}</h4>
+          <p style="font-size:12px;color:#666;margin-top:4px">Cafe ☕</p>
+
+         <a 
+  href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" 
+  target="_blank"
+  style="
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    margin-top:8px;
+    background:#2563eb;
+    color:#fff;
+    padding:6px;
+    border-radius:6px;
+    font-size:12px;
+    text-decoration:none;
+  "
+>
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="white" viewBox="0 0 24 24">
+    <path d="M21 3L3 10.53v2.94l7 2.53 2.53 7h2.94L21 3z"/>
+  </svg>
+  Get Directions
+</a>
+        </div>
+      </div>
+    `)
+    .addTo(map);
+});
+
+        // 🖱️ Cursor smooth
         ["clusters", "unclustered-point"].forEach((layer) => {
           map.on("mouseenter", layer, () => {
             map.getCanvas().style.cursor = "pointer";
@@ -182,48 +208,55 @@ export default function Maplibre() {
           });
         });
       }
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
     }
 
-    setTimeout(() => setLoading(false), 200);
+    setTimeout(() => setLoading(false), 200); // 👈 smooth fade feel
   };
 
-  // 🧠 DEBOUNCE
+  // 🧠 Debounce wrapper
   const debouncedFetch = (map) => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchData(map);
-    }, 300);
+    }, 300); // 🔥 sweet spot
   };
 
-  // 🗺️ MAP INIT
+  // 🗺️ Init map
   useEffect(() => {
     if (mapRef.current) return;
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: styleURL,
-
-      center: [77.391, 28.6139],
-      zoom: 10,
-
-      // 🔥 MOST IMPORTANT (OLA FIX)
-      transformRequest: (url) => {
-        if (url.includes("api.olamaps.io")) {
-          const sep = url.includes("?") ? "&" : "?";
-          return { url: `${url}${sep}api_key=${API_KEY}` };
-        }
-        return { url };
+      style: {
+        version: 8,
+        sources: {
+          carto: {
+            type: "raster",
+            tiles: [
+              "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+            ],
+            tileSize: 256,
+          },
+        },
+        layers: [
+          {
+            id: "base",
+            type: "raster",
+            source: "carto",
+          },
+        ],
       },
+      center: [77.4, 23.25],
+      zoom: 5,
     });
-
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
 
     mapRef.current = map;
 
     map.on("load", () => {
       fetchData(map);
+      
 
       map.on("moveend", () => {
         debouncedFetch(map);
@@ -231,7 +264,7 @@ export default function Maplibre() {
     });
   }, []);
 
-  // 🔍 SEARCH
+  // 🔍 Search
   const handleSearch = async () => {
     if (!query) return;
 
@@ -244,38 +277,41 @@ export default function Maplibre() {
       mapRef.current.flyTo({
         center: [parseFloat(data[0].lon), parseFloat(data[0].lat)],
         zoom: 14,
+        duration: 1200, // 💨 smooth animation
       });
     }
   };
 
   return (
     <div className="relative h-screen w-full">
-      {/* SEARCH */}
+      {/* 🔍 Search */}
       <div className="absolute top-4 left-4 z-10">
-        <div className="flex gap-2 px-3 py-2 rounded-xl bg-black/70 backdrop-blur border border-white/10">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0f0f0f]/80 backdrop-blur-xl border border-white/10 shadow-xl">
           <input
-            className="bg-transparent outline-none text-sm text-white w-[180px]"
+            className="bg-transparent outline-none text-sm text-white placeholder:text-white/40 w-[180px]"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search..."
+            placeholder="Search city..."
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           />
+
           <button
             onClick={handleSearch}
-            className="px-3 py-1 rounded bg-blue-500 text-white"
+            className="px-3 py-1.5 rounded-lg text-sm bg-blue-500 hover:bg-blue-600 text-white transition"
           >
             Go
           </button>
         </div>
       </div>
 
-      {/* LOADING BAR */}
+      {/* 🚀 TOP LOADING BAR (no blocking UI) */}
       <div
-        className={`absolute top-0 left-0 h-[2px] bg-blue-500 z-20 transition-all ${
-          loading ? "w-full" : "w-0"
+        className={`absolute top-0 left-0 h-[2px] bg-blue-500 z-20 transition-all duration-500 ${
+          loading ? "w-full opacity-100" : "w-0 opacity-0"
         }`}
       />
 
+      {/* 🗺️ Map */}
       <div ref={mapContainer} className="h-full w-full" />
     </div>
   );

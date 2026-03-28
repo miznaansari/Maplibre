@@ -243,88 +243,88 @@ export default function MapComponent() {
 
 
       {/* 🔍 SEARCH */}
-     <div className="absolute top-4 left-4 z-[1000] w-[340px]">
-  <div
-    className="relative bg-[#0f0f0f]/80 backdrop-blur-xl rounded-2xl 
+      <div className="absolute top-4 left-4 z-[1000] w-[340px]">
+        <div
+          className="relative bg-[#0f0f0f]/80 backdrop-blur-xl rounded-2xl 
     shadow-[0_8px_40px_rgba(0,0,0,0.5)] border border-white/10 p-2
     transition-all duration-300"
-  >
-    {/* 🔍 Search Bar */}
-    <div className="flex items-center gap-2 px-3 py-2 rounded-full 
+        >
+          {/* 🔍 Search Bar */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-full 
     bg-white/5 border border-white/10 focus-within:border-blue-400/50
     focus-within:shadow-[0_0_15px_rgba(14,165,233,0.3)] transition">
 
-      {/* Icon */}
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-4 h-4 text-white/50"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"
-        />
-      </svg>
+            {/* Icon */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-4 h-4 text-white/50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"
+              />
+            </svg>
 
-      {/* Input */}
-      <input
-        type="text"
-        placeholder="Search cafes..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-white/40"
-      />
+            {/* Input */}
+            <input
+              type="text"
+              placeholder="Search cafes..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-white/40"
+            />
 
-      {/* ❌ Clear */}
-      {search && (
-        <button
-          onClick={() => {
-            setSearch("");
-            setFiltered([]);
-          }}
-          className="text-white/40 hover:text-white transition text-sm"
-        >
-          ✕
-        </button>
-      )}
-    </div>
+            {/* ❌ Clear */}
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setFiltered([]);
+                }}
+                className="text-white/40 hover:text-white transition text-sm"
+              >
+                ✕
+              </button>
+            )}
+          </div>
 
-    {/* 🔽 Dropdown */}
-    {filtered.length > 0 && (
-      <div
-        className="mt-2 max-h-[220px] overflow-y-auto rounded-xl 
+          {/* 🔽 Dropdown */}
+          {filtered.length > 0 && (
+            <div
+              className="mt-2 max-h-[220px] overflow-y-auto rounded-xl 
         bg-white/5 border border-white/10 backdrop-blur-md
         divide-y divide-white/5 animate-in fade-in slide-in-from-top-2 duration-200"
-      >
-        {filtered.map((cafe) => (
-          <div
-            key={cafe.id}
-            onClick={() => {
-              setSelectedLocation({ lat: cafe.lat, lng: cafe.lng });
-              setSearch("");
-              setFiltered([]);
-            }}
-            className="px-3 py-2 cursor-pointer text-sm text-white 
+            >
+              {filtered.map((cafe) => (
+                <div
+                  key={cafe.id}
+                  onClick={() => {
+                    setSelectedLocation({ lat: cafe.lat, lng: cafe.lng });
+                    setSearch("");
+                    setFiltered([]);
+                  }}
+                  className="px-3 py-2 cursor-pointer text-sm text-white 
             flex items-center justify-between
             hover:bg-white/10 active:scale-[0.98] transition-all duration-150"
-          >
-            {/* Name */}
-            <span className="truncate">{cafe.name}</span>
+                >
+                  {/* Name */}
+                  <span className="truncate">{cafe.name}</span>
 
-            {/* Small badge */}
-            <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
-              Cafe
-            </span>
-          </div>
-        ))}
+                  {/* Small badge */}
+                  <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
+                    Cafe
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    )}
-  </div>
-</div>
       <div className="absolute top-6 right-7 z-[1000]">
         <button
           onClick={toggleTheme}
@@ -368,7 +368,7 @@ export default function MapComponent() {
             theme === "dark"
               ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
               // : "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
-              : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+              : "/api/map-style"
           }
           updateWhenIdle={true}
           keepBuffer={12}

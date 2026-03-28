@@ -51,7 +51,7 @@ export default function Page() {
               <MapIcon className="w-8 h-8" />
             </div>
 
-            <h2 className="text-xl font-semibold">MapLibre</h2>
+            <h2 className="text-xl font-semibold">MapLibre + Ola Map</h2>
 
             <p className="text-sm text-white/60">
               High performance vector maps with advanced customization.
