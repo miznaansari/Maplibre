@@ -151,27 +151,52 @@ img.onload = () => {
           );
         });
 
-        map.on("click", "unclustered-point", (e) => {
-          const f = e.features[0];
-          const p = f.properties;
+       map.on("click", "unclustered-point", (e) => {
+  const f = e.features[0];
+  const p = f.properties;
 
-          new maplibregl.Popup({ offset: 15 })
-            .setLngLat(f.geometry.coordinates)
-            .setHTML(`
-              <div style="width:200px;border-radius:12px;overflow:hidden">
-                ${
-                  p.image
-                    ? `<img src="${p.image}" style="width:100%;height:110px;object-fit:cover"/>`
-                    : ""
-                }
-                <div style="padding:10px">
-                  <h4 style="margin:0;font-size:14px;font-weight:600">${p.name}</h4>
-                  <p style="font-size:12px;color:#666;margin-top:4px">Cafe ☕</p>
-                </div>
-              </div>
-            `)
-            .addTo(map);
-        });
+  const [lng, lat] = f.geometry.coordinates;
+
+  new maplibregl.Popup({ offset: 15 })
+    .setLngLat([lng, lat])
+    .setHTML(`
+      <div style="width:200px;border-radius:12px;overflow:hidden">
+        ${
+          p.image
+            ? `<img src="${p.image}" style="width:100%;height:110px;object-fit:cover"/>`
+            : ""
+        }
+        <div style="padding:10px">
+          <h4 style="margin:0;font-size:14px;font-weight:600">${p.name}</h4>
+          <p style="font-size:12px;color:#666;margin-top:4px">Cafe ☕</p>
+
+         <a 
+  href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" 
+  target="_blank"
+  style="
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    margin-top:8px;
+    background:#2563eb;
+    color:#fff;
+    padding:6px;
+    border-radius:6px;
+    font-size:12px;
+    text-decoration:none;
+  "
+>
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="white" viewBox="0 0 24 24">
+    <path d="M21 3L3 10.53v2.94l7 2.53 2.53 7h2.94L21 3z"/>
+  </svg>
+  Get Directions
+</a>
+        </div>
+      </div>
+    `)
+    .addTo(map);
+});
 
         // 🖱️ Cursor smooth
         ["clusters", "unclustered-point"].forEach((layer) => {
