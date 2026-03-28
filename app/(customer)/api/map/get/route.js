@@ -36,10 +36,10 @@ export async function GET(req) {
     }
 
     // 🎯 dynamic limit (tuned for maps)
-    let take = 1200;
-    if (zoom >= 15) take = 150;
-    else if (zoom >= 13) take = 300;
-    else if (zoom >= 11) take = 700;
+    let take = 5000;
+    if (zoom >= 15) take = 1000;
+    else if (zoom >= 13) take = 2000;
+    else if (zoom >= 11) take = 400;
 
     // 🚀 Prisma query (index-friendly)
     const restaurants = await prisma.restaurant_detail_v2.findMany({
