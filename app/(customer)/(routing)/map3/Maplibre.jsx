@@ -255,7 +255,7 @@ const abortRef = useRef(null);
 
         debounceRef.current = setTimeout(() => {
           fetchData(map);
-        }, 300);
+        }, 600);
       });
 
       map.on("zoom", () => {
