@@ -74,9 +74,11 @@ export async function GET(req, { params }) {
 
     const bbox = tileToBBOX(tileX, tileY, zoom);
 
-    let take = 2000;
-    if (zoom >= 15) take = 500;
-    else if (zoom >= 13) take = 1000;
+    let take = 300;
+    if (zoom >= 15) take = 450;
+    else if (zoom >= 13) take = 700;
+    else if (zoom >= 11) take = 500;
+    else if (zoom >= 9) take = 400;
 
     const restaurants = await prisma.restaurant_detail_v2.findMany({
       where: {
@@ -95,6 +97,9 @@ export async function GET(req, { params }) {
         latitude: true,
         longitude: true,
         gallery: true,
+      },
+      orderBy: {
+        id: "desc",
       },
       take,
     });
