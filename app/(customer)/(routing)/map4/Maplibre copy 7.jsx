@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import Supercluster from "supercluster";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { saveCafes, getCafesInBounds } from "@/lib/indexedDB";
+import { getTile, saveTile } from "@/lib/map/tileDB";
 
-export default function Maplibre() {
+export default function MapComponent() {
   const mapContainer = useRef(null);
   const searchContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -14,16 +14,18 @@ export default function Maplibre() {
   const userLocationMarkerRef = useRef(null);
   const clusterRef = useRef(null);
   const markersRef = useRef(new Map());
-  const allPointsRef = useRef([]);
+  const allFeaturesRef = useRef([]);
   const searchQueryRef = useRef("");
-  const debounceRef = useRef(null);
-  const searchFetchTimeoutRef = useRef(null);
-  const isLoadingDataRef = useRef(false);
+  const loadTimeoutRef = useRef(null);
+  const isLoadingTilesRef = useRef(false);
   const pendingReloadRef = useRef(false);
+  const lastPulseIdRef = useRef(null);
+  const pulseTimeoutRef = useRef(null);
   const styleReadyRef = useRef(false);
-  const isMountedRef = useRef(false);
+  const isMounted = useRef(false);
 
   const [apiLogs, setApiLogs] = useState([]);
+  const [allFeaturesState, setAllFeaturesState] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState([]);
   const [showSearchOptions, setShowSearchOptions] = useState(false);
@@ -37,14 +39,37 @@ export default function Maplibre() {
       ? `https://api.olamaps.io/tiles/vector/v1/styles/default-dark-standard/style.json?api_key=${API_KEY}`
       : `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${API_KEY}`;
 
-  const pushLog = (log) => {
-    setApiLogs((prev) => [
-      {
+  const logEvent = (log) => {
+    setApiLogs((prev) => {
+      const newLog = {
         id: Date.now() + Math.random(),
         ...log,
-      },
-      ...prev.slice(0, 9),
-    ]);
+      };
+      return [newLog, ...prev].slice(0, 10);
+    });
+  };
+
+  const pulseMarker = (marker) => {
+    if (!marker) return;
+    const el = marker.getElement();
+    if (!el) return;
+
+    if (pulseTimeoutRef.current) {
+      window.clearTimeout(pulseTimeoutRef.current);
+      pulseTimeoutRef.current = null;
+    }
+
+    el.style.transition = "none";
+    el.style.opacity = "1";
+
+    requestAnimationFrame(() => {
+      el.style.transition = "opacity 180ms ease";
+      el.style.opacity = "0.35";
+
+      pulseTimeoutRef.current = window.setTimeout(() => {
+        el.style.opacity = "1";
+      }, 190);
+    });
   };
 
   const normalizeSearch = (value) =>
@@ -52,15 +77,15 @@ export default function Maplibre() {
       .toLowerCase()
       .trim();
 
-  const buildSearchOptions = (points, query) => {
+  const buildSearchOptions = (features, query) => {
     const q = normalizeSearch(query);
     if (!q) return [];
 
     const byLabel = new Map();
 
-    points.forEach((point) => {
-      const props = point?.properties ?? {};
-      const [lng, lat] = point?.geometry?.coordinates ?? [];
+    features.forEach((feature) => {
+      const props = feature?.properties ?? {};
+      const [lng, lat] = feature?.geometry?.coordinates ?? [];
       if (typeof lng !== "number" || typeof lat !== "number") return;
 
       const candidates = [
@@ -109,56 +134,98 @@ export default function Maplibre() {
 
       const lat = Number(first.lat);
       const lng = Number(first.lon);
+
       if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
 
-      return { center: [lng, lat] };
+      return {
+        center: [lng, lat],
+      };
     } catch {
       return null;
     }
-  };
-
-  const getClusterSize = (count) => {
-    if (count >= 120) return "xl";
-    if (count >= 80) return "lg";
-    if (count >= 40) return "md";
-    return "sm";
-  };
-
-  const sizeMap = {
-    xl: 90,
-    lg: 70,
-    md: 55,
-    sm: 40,
   };
 
   const createMarkerEl = (image) => {
     const el = document.createElement("div");
 
     el.innerHTML = `
-      <div class="marker">
-        <img src="${image}" onerror="this.src='/images/not-found.png'" />
+      <div style="
+        width:42px;
+        height:42px;
+        border-radius:10px;
+        border:3px solid #22c55e;
+        padding:2px;
+        background:white;
+        box-shadow:0 4px 12px rgba(0,0,0,0.25);
+      ">
+        <img 
+          src="${image}" 
+          style="
+            width:100%;
+            height:100%;
+            border-radius:8px;
+            object-fit:cover;
+          "
+        />
       </div>
     `;
 
     return el;
   };
 
-  const createClusterEl = (leaves, count) => {
-    const el = document.createElement("div");
+  const getClusterSize = (count) => {
+    if (count >= 300) return 90;
+    if (count >= 200) return 75;
+    if (count >= 100) return 60;
+    return 45;
+  };
 
-    const sizeKey = getClusterSize(count);
-    const size = sizeMap[sizeKey];
+  const createClusterEl = (leaves, count) => {
+    const size = getClusterSize(count);
+    const el = document.createElement("div");
 
     const imgs = leaves.slice(0, 4).map((l) => l.properties.image);
 
-    el.className = "cluster-marker";
-    el.style.width = `${size}px`;
-    el.style.height = `${size}px`;
-
     el.innerHTML = `
-      <div class="cluster-inner">
-        ${imgs.map((img) => `<img src="${img}" />`).join("")}
-        <span class="cluster-count">${count}</span>
+      <div style="
+        width:${size}px;
+        height:${size}px;
+        border-radius:12px;
+        background:white;
+        border:3px solid #3b82f6;
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        grid-template-rows:1fr 1fr;
+        overflow:hidden;
+        position:relative;
+        box-shadow:0 6px 20px rgba(0,0,0,0.3);
+      ">
+        ${imgs
+        .map(
+          (img) => `
+          <img src="${img}" style="
+            width:100%;
+            height:100%;
+            object-fit:cover;
+          "/>
+        `
+        )
+        .join("")}
+
+        <div style="
+          position:absolute;
+          bottom:-6px;
+          right:-6px;
+          background:#3b82f6;
+          color:white;
+          font-size:11px;
+          font-weight:600;
+          padding:4px 6px;
+          border-radius:999px;
+          border:2px solid white;
+        ">
+          ${count}
+        </div>
       </div>
     `;
 
@@ -168,6 +235,8 @@ export default function Maplibre() {
   const updateMarkers = (map) => {
     if (!map || !map.isStyleLoaded()) return;
     if (!clusterRef.current) return;
+
+    const previousMarkers = markersRef.current;
 
     const bounds = map.getBounds();
     const zoom = Math.floor(map.getZoom());
@@ -183,6 +252,8 @@ export default function Maplibre() {
     );
 
     const newMarkers = new Map();
+    let lastMarkerId = null;
+    let markersChanged = false;
 
     clusters.forEach((feature) => {
       const [lng, lat] = feature.geometry.coordinates;
@@ -193,9 +264,9 @@ export default function Maplibre() {
       const id = props.cluster
         ? `cluster-${props.cluster_id}`
         : `point-${props.id}`;
+      lastMarkerId = id;
 
-      let marker = markersRef.current.get(id);
-
+      let marker = previousMarkers.get(id);
       if (!marker) {
         let el;
 
@@ -207,210 +278,197 @@ export default function Maplibre() {
 
           el = createClusterEl(leaves, props.point_count);
 
-          el.addEventListener("click", (e) => {
-            e.stopPropagation();
-
+          el.onclick = () => {
             const zoom =
               clusterRef.current.getClusterExpansionZoom(
                 props.cluster_id
               );
 
-            map.easeTo({
-              center: [lng, lat],
-              zoom,
-              duration: 500,
-            });
-          });
+            map.easeTo({ center: [lng, lat], zoom });
+          };
         } else {
           el = createMarkerEl(props.image);
 
-          el.addEventListener("click", (e) => {
+          el.onclick = (e) => {
             e.stopPropagation();
 
-            if (popupRef.current) popupRef.current.remove();
+            if (popupRef.current) {
+              popupRef.current.remove();
+            }
 
-            const popup = new maplibregl.Popup({ offset: 25 })
+            const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+            const popup = new maplibregl.Popup({
+              offset: 25,
+              closeButton: false,
+            })
               .setLngLat([lng, lat])
               .setHTML(`
-                <div style="width:200px;border-radius:12px;overflow:hidden">
-                  <img src="${props.image}" style="width:100%;height:120px;object-fit:cover"/>
+                <div style="
+                  width:220px;
+                  border-radius:14px;
+                  overflow:hidden;
+                  font-family:system-ui;
+                ">
+                  <img 
+                    src="${props.image}" 
+                    style="width:100%;height:120px;object-fit:cover"
+                  />
+
                   <div style="padding:10px">
-                    <h4 style="margin:0;font-size:14px;font-weight:600">
-                      ${props.name}
+                    <h4 style="
+                      margin:0;
+                      font-size:14px;
+                      font-weight:600;
+                      color:#111;
+                    ">
+                      ${props.name || "Cafe"}
                     </h4>
+
+                    <a 
+                      href="${googleMapsUrl}" 
+                      target="_blank"
+                      style="
+                        display:block;
+                        margin-top:8px;
+                        background:#22c55e;
+                        color:white;
+                        text-align:center;
+                        padding:8px;
+                        border-radius:8px;
+                        font-size:12px;
+                        text-decoration:none;
+                        font-weight:600;
+                      "
+                    >
+                      🚀 Get Direction
+                    </a>
                   </div>
                 </div>
               `)
               .addTo(map);
 
             popupRef.current = popup;
-          });
+          };
         }
 
-        marker = new maplibregl.Marker({ element: el }).setLngLat([
-          lng,
-          lat,
-        ]);
+        marker = new maplibregl.Marker({ element: el });
+        marker.setLngLat([lng, lat]);
+        marker.addTo(map);
+        markersChanged = true;
       } else {
-        const el = marker.getElement();
-
-        if (props.cluster) {
-          const sizeKey = getClusterSize(props.point_count);
-          const size = sizeMap[sizeKey];
-
-          el.style.width = `${size}px`;
-          el.style.height = `${size}px`;
-
-          const countEl = el.querySelector(".cluster-count");
-          if (countEl) countEl.innerText = props.point_count;
-        }
+        marker.setLngLat([lng, lat]);
       }
-
-      marker.setLngLat([lng, lat]);
 
       newMarkers.set(id, marker);
-
-      if (!markersRef.current.has(id)) {
-        marker.addTo(map);
-      }
     });
 
-    markersRef.current.forEach((marker, id) => {
-      if (!newMarkers.has(id)) marker.remove();
+    previousMarkers.forEach((marker, id) => {
+      if (newMarkers.has(id)) return;
+      marker.remove();
+      markersChanged = true;
     });
 
     markersRef.current = newMarkers;
+
+    if (lastMarkerId && markersChanged) {
+      const lastMarker = newMarkers.get(lastMarkerId);
+
+      if (lastMarker) {
+        lastPulseIdRef.current = lastMarkerId;
+        pulseMarker(lastMarker);
+      }
+    }
   };
 
-  const fetchData = async (map) => {
+  const rebuildClusters = (map, features) => {
+    clusterRef.current = new Supercluster({
+      radius: 80,
+      maxZoom: 16,
+    }).load(features);
+
+    updateMarkers(map);
+  };
+
+  const loadTiles = async (map) => {
     if (!map || !map.isStyleLoaded()) return;
-    if (isLoadingDataRef.current) {
+    if (isLoadingTilesRef.current) {
       pendingReloadRef.current = true;
       return;
     }
 
-    isLoadingDataRef.current = true;
+    isLoadingTilesRef.current = true;
 
     try {
       const bounds = map.getBounds();
+      const zoom = Math.floor(map.getZoom());
 
-      const boundsObj = {
-        north: bounds.getNorth(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        west: bounds.getWest(),
-      };
+      const tiles = getVisibleTiles(bounds, zoom);
+      const allFeatures = [];
 
-      const cacheStart = performance.now();
-      const cached = await getCafesInBounds(boundsObj);
-      const cacheTime = Math.round(performance.now() - cacheStart);
+      await Promise.all(
+        tiles.map(async ({ x, y, z }) => {
+          const key = `${z}_${x}_${y}`;
+          const url = `/api/map/tile/${z}/${x}/${y}`;
 
-      if (cached.length > 20) {
-        pushLog({
-          url: "indexedDB",
-          status: "cache-hit",
-          time: cacheTime,
-        });
+          const start = performance.now();
 
-        const points = cached
-          .filter(
-            (cafe) =>
-              typeof cafe?.lng === "number" && typeof cafe?.lat === "number"
-          )
-          .map((cafe) => ({
-            type: "Feature",
-            properties: cafe,
-            geometry: {
-              type: "Point",
-              coordinates: [cafe.lng, cafe.lat],
-            },
-          }));
+          const cached = await getTile(key);
 
-        allPointsRef.current = points;
-        clusterRef.current = new Supercluster({
-          radius: 80,
-          maxZoom: 16,
-        }).load(points);
+          if (cached) {
+            logEvent({
+              url,
+              status: "cache-hit",
+              time: Math.round(performance.now() - start),
+            });
 
-        updateMarkers(map);
-        return;
-      }
+            allFeatures.push(...cached.data.features);
+            return;
+          }
 
-      pushLog({
-        url: "indexedDB",
-        status: "cache-miss",
-        time: cacheTime,
-      });
+          logEvent({ url, status: "pending" });
 
-      const start = performance.now();
-      pushLog({
-        url: "api/map/get",
-        status: "pending",
-        time: null,
-      });
+          try {
+            const res = await fetch(url);
+            const data = await res.json();
 
-      try {
-        const res = await fetch(
-          `/api/map/get?north=${boundsObj.north}&south=${boundsObj.south}&east=${boundsObj.east}&west=${boundsObj.west}`
-        );
+            allFeatures.push(...data.features);
+            await saveTile(key, data);
 
-        const data = await res.json();
-        const duration = Math.round(performance.now() - start);
+            logEvent({
+              url,
+              status: "success",
+              time: Math.round(performance.now() - start),
+            });
+          } catch {
+            logEvent({
+              url,
+              status: "error",
+              time: Math.round(performance.now() - start),
+            });
+          }
+        })
+      );
 
-        pushLog({
-          url: "api/map/get",
-          status: "success",
-          time: duration,
-        });
-
-        await saveCafes(data.cafes);
-
-        const points = (data.cafes || [])
-          .filter(
-            (cafe) =>
-              typeof cafe?.lng === "number" && typeof cafe?.lat === "number"
-          )
-          .map((cafe) => ({
-            type: "Feature",
-            properties: cafe,
-            geometry: {
-              type: "Point",
-              coordinates: [cafe.lng, cafe.lat],
-            },
-          }));
-
-        allPointsRef.current = points;
-        clusterRef.current = new Supercluster({
-          radius: 80,
-          maxZoom: 16,
-        }).load(points);
-
-        updateMarkers(map);
-      } catch (err) {
-        const duration = Math.round(performance.now() - start);
-        pushLog({
-          url: "api/map/get",
-          status: "error",
-          time: duration,
-        });
-        console.error(err);
-      }
+      allFeaturesRef.current = allFeatures;
+      setAllFeaturesState(allFeatures);
+      rebuildClusters(map, allFeatures);
     } finally {
-      isLoadingDataRef.current = false;
+      isLoadingTilesRef.current = false;
 
       if (pendingReloadRef.current) {
         pendingReloadRef.current = false;
         window.setTimeout(() => {
           if (!mapRef.current || !map.isStyleLoaded()) return;
-          void fetchData(map);
+          void loadTiles(map);
         }, 0);
       }
     }
   };
 
   useEffect(() => {
-    if (mapRef.current || isMountedRef.current) return;
-    isMountedRef.current = true;
+    if (mapRef.current || isMounted.current) return;
+    isMounted.current = true;
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
@@ -428,21 +486,29 @@ export default function Maplibre() {
     mapRef.current = map;
     setZoomLevel(Number(map.getZoom().toFixed(2)));
 
+    const scheduleLoadTiles = () => {
+      if (loadTimeoutRef.current) {
+        window.clearTimeout(loadTimeoutRef.current);
+      }
+
+      loadTimeoutRef.current = window.setTimeout(() => {
+        if (!mapRef.current || !map.isStyleLoaded()) return;
+        map.once("idle", () => loadTiles(map));
+      }, 80);
+    };
+
     map.on("load", () => {
-      void fetchData(map);
-
-      map.on("moveend", () => {
-        clearTimeout(debounceRef.current);
-
-        debounceRef.current = setTimeout(() => {
-          void fetchData(map);
-        }, 200);
+      map.once("idle", async () => {
+        await loadTiles(map);
       });
+    });
 
-      map.on("zoom", () => {
-        updateMarkers(map);
-        setZoomLevel(Number(map.getZoom().toFixed(2)));
-      });
+    map.on("moveend", () => {
+      scheduleLoadTiles();
+    });
+
+    map.on("zoom", () => {
+      setZoomLevel(Number(map.getZoom().toFixed(2)));
     });
 
     return () => {
@@ -451,42 +517,40 @@ export default function Maplibre() {
         mapRef.current = null;
       }
 
-      if (debounceRef.current) {
-        window.clearTimeout(debounceRef.current);
-        debounceRef.current = null;
+      if (loadTimeoutRef.current) {
+        window.clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
       }
 
-      if (searchFetchTimeoutRef.current) {
-        window.clearTimeout(searchFetchTimeoutRef.current);
-        searchFetchTimeoutRef.current = null;
+      if (pulseTimeoutRef.current) {
+        window.clearTimeout(pulseTimeoutRef.current);
+        pulseTimeoutRef.current = null;
       }
 
       pendingReloadRef.current = false;
-      isLoadingDataRef.current = false;
-      styleReadyRef.current = false;
+      isLoadingTilesRef.current = false;
 
       markersRef.current.forEach((m) => m.remove());
       markersRef.current.clear();
-
-      if (popupRef.current) {
-        popupRef.current.remove();
-        popupRef.current = null;
-      }
-
+      allFeaturesRef.current = [];
+      setAllFeaturesState([]);
       if (userLocationMarkerRef.current) {
         userLocationMarkerRef.current.remove();
         userLocationMarkerRef.current = null;
       }
-
-      allPointsRef.current = [];
-      isMountedRef.current = false;
+      clusterRef.current = null;
+      popupRef.current = null;
+      lastPulseIdRef.current = null;
+      styleReadyRef.current = false;
+      isMounted.current = false;
     };
   }, []);
 
   useEffect(() => {
     searchQueryRef.current = searchQuery;
-    setSearchOptions(buildSearchOptions(allPointsRef.current, searchQuery));
-  }, [searchQuery]);
+
+    setSearchOptions(buildSearchOptions(allFeaturesState, searchQuery));
+  }, [searchQuery, allFeaturesState]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -498,8 +562,8 @@ export default function Maplibre() {
     const map = mapRef.current;
     map.setStyle(styleURL);
 
-    map.once("idle", () => {
-      void fetchData(map);
+    map.once("idle", async () => {
+      await loadTiles(map);
     });
   }, [styleURL]);
 
@@ -523,25 +587,6 @@ export default function Maplibre() {
     setShowSearchOptions(true);
   };
 
-  const triggerFetchAfterSearchMove = (map) => {
-    if (!map) return;
-
-    map.once("moveend", () => {
-      if (!mapRef.current || !map.isStyleLoaded()) return;
-      void fetchData(map);
-    });
-
-    if (searchFetchTimeoutRef.current) {
-      window.clearTimeout(searchFetchTimeoutRef.current);
-    }
-
-    // Fallback for cases where moveend is skipped/merged.
-    searchFetchTimeoutRef.current = window.setTimeout(() => {
-      if (!mapRef.current || !map.isStyleLoaded()) return;
-      void fetchData(map);
-    }, 900);
-  };
-
   const onSelectOption = (option) => {
     if (
       !option ||
@@ -558,14 +603,10 @@ export default function Maplibre() {
 
     if (!mapRef.current) return;
 
-    const map = mapRef.current;
-    const currentZoom = map.getZoom();
-    const targetZoom =
-      option.type === "state" ? 7 : option.type === "city" ? 11 : 16;
+    const currentZoom = mapRef.current.getZoom();
+    const targetZoom = option.type === "state" ? 7 : option.type === "city" ? 10 : 13;
 
-    triggerFetchAfterSearchMove(map);
-
-    map.flyTo({
+    mapRef.current.flyTo({
       center: option.center,
       zoom: Math.max(currentZoom, targetZoom),
       speed: 0.9,
@@ -575,7 +616,7 @@ export default function Maplibre() {
   };
 
   const onSearchClick = async () => {
-    const options = buildSearchOptions(allPointsRef.current, searchQuery);
+    const options = buildSearchOptions(allFeaturesRef.current, searchQuery);
     setSearchOptions(options);
 
     if (options.length) {
@@ -593,12 +634,9 @@ export default function Maplibre() {
       return;
     }
 
-    const map = mapRef.current;
-    triggerFetchAfterSearchMove(map);
-
-    map.flyTo({
+    mapRef.current.flyTo({
       center: geocoded.center,
-      zoom: Math.max(10, map.getZoom()),
+      zoom: Math.max(10, mapRef.current.getZoom()),
       speed: 0.9,
       curve: 1.2,
       essential: true,
@@ -618,7 +656,7 @@ export default function Maplibre() {
     if (!mapRef.current) return;
 
     if (!("geolocation" in navigator)) {
-      pushLog({ url: "gps", status: "error", time: 0 });
+      logEvent({ url: "gps", status: "error", time: 0 });
       return;
     }
 
@@ -655,14 +693,14 @@ export default function Maplibre() {
           essential: true,
         });
 
-        pushLog({
+        logEvent({
           url: "gps",
           status: "success",
           time: Math.round(performance.now() - start),
         });
       },
       () => {
-        pushLog({
+        logEvent({
           url: "gps",
           status: "error",
           time: Math.round(performance.now() - start),
@@ -695,11 +733,10 @@ export default function Maplibre() {
       <div className="absolute top-2 left-2 right-2 sm:right-auto z-[10020] flex flex-col gap-2 max-w-[95vw] sm:max-w-sm pointer-events-auto overflow-visible">
         <div
           ref={searchContainerRef}
-          className={`relative isolate z-[30] rounded-lg border shadow-sm backdrop-blur-md p-2 ${
-            themeMode === "dark"
+          className={`relative isolate z-[30] rounded-lg border shadow-sm backdrop-blur-md p-2 ${themeMode === "dark"
               ? "bg-black/60 border-white/15"
               : "bg-white/85 border-black/10"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2">
             <input
@@ -708,42 +745,38 @@ export default function Maplibre() {
               onKeyDown={onSearchKeyDown}
               onFocus={() => setShowSearchOptions(true)}
               placeholder="Search cafe, city, state"
-              className={`w-full text-xs sm:text-sm px-2 py-1.5 rounded-md outline-none border ${
-                themeMode === "dark"
+              className={`w-full text-xs sm:text-sm px-2 py-1.5 rounded-md outline-none border ${themeMode === "dark"
                   ? "bg-black/30 border-white/20 text-white placeholder:text-white/60"
                   : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"
-              }`}
+                }`}
             />
             <button
               type="button"
               onClick={onSearchClick}
-              className={`text-xs sm:text-sm px-2 py-1.5 rounded-md border font-medium ${
-                themeMode === "dark"
+              className={`text-xs sm:text-sm px-2 py-1.5 rounded-md border font-medium ${themeMode === "dark"
                   ? "bg-white/10 border-white/20 text-white"
                   : "bg-gray-100 border-gray-300 text-gray-900"
-              }`}
+                }`}
             >
               Search
             </button>
             <button
               type="button"
               onClick={onLocateMe}
-              className={`text-xs sm:text-sm px-2 py-1.5 rounded-md border font-medium ${
-                themeMode === "dark"
+              className={`text-xs sm:text-sm px-2 py-1.5 rounded-md border font-medium ${themeMode === "dark"
                   ? "bg-white/10 border-white/20 text-white"
                   : "bg-gray-100 border-gray-300 text-gray-900"
-              }`}
+                }`}
             >
               GPS
             </button>
             <button
               type="button"
               onClick={toggleTheme}
-              className={`text-xs sm:text-sm px-2 py-1.5 rounded-md border font-medium ${
-                themeMode === "dark"
+              className={`text-xs sm:text-sm px-2 py-1.5 rounded-md border font-medium ${themeMode === "dark"
                   ? "bg-white/10 border-white/20 text-white"
                   : "bg-gray-100 border-gray-300 text-gray-900"
-              }`}
+                }`}
             >
               {themeMode === "dark" ? "Light" : "Dark"}
             </button>
@@ -751,27 +784,23 @@ export default function Maplibre() {
 
           {showSearchOptions && searchOptions.length > 0 && (
             <div
-              className={`absolute left-2 right-2 top-[calc(100%+6px)] rounded-md border shadow-lg overflow-hidden z-[10040] ${
-                themeMode === "dark"
+              className={`absolute left-2 right-2 top-[calc(100%+6px)] rounded-md border shadow-lg overflow-hidden z-[10040] ${themeMode === "dark"
                   ? "bg-black/90 border-white/15"
                   : "bg-white border-gray-200"
-              }`}
+                }`}
             >
               {searchOptions.map((option) => (
                 <button
                   key={option.id}
                   type="button"
                   onClick={() => onSelectOption(option)}
-                  className={`w-full text-left px-3 py-2 text-xs sm:text-sm border-b last:border-b-0 ${
-                    themeMode === "dark"
+                  className={`w-full text-left px-3 py-2 text-xs sm:text-sm border-b last:border-b-0 ${themeMode === "dark"
                       ? "text-white border-white/10 hover:bg-white/10"
                       : "text-gray-900 border-gray-100 hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   <span className="font-medium">{option.label}</span>
-                  <span className="ml-2 opacity-70 uppercase text-[10px]">
-                    {option.type}
-                  </span>
+                  <span className="ml-2 opacity-70 uppercase text-[10px]">{option.type}</span>
                 </button>
               ))}
             </div>
@@ -782,11 +811,10 @@ export default function Maplibre() {
           {apiLogs.map((log) => (
             <div
               key={log.id}
-              className={`min-w-max whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded-md text-[10px] sm:text-xs font-mono backdrop-blur-md border shadow-sm ${
-                themeMode === "dark"
+              className={`min-w-max whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded-md text-[10px] sm:text-xs font-mono backdrop-blur-md border shadow-sm ${themeMode === "dark"
                   ? "bg-black/60 text-white border-white/10"
                   : "bg-white/85 text-gray-800 border-black/10"
-              }`}
+                }`}
             >
               <span
                 className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full
@@ -797,10 +825,6 @@ export default function Maplibre() {
         ${log.status === "cache-miss" && "bg-purple-500"}
       `}
               />
-
-              <span className="opacity-70 truncate max-w-[90px] sm:max-w-[160px]">
-                {log.url}
-              </span>
 
               <span className="hidden sm:inline opacity-40">→</span>
 
@@ -818,9 +842,8 @@ export default function Maplibre() {
 
               {log.time && (
                 <span
-                  className={`ml-auto text-[9px] sm:text-[11px] ${
-                    themeMode === "dark" ? "text-white/70" : "text-gray-500"
-                  }`}
+                  className={`ml-auto text-[9px] sm:text-[11px] ${themeMode === "dark" ? "text-white/70" : "text-gray-500"
+                    }`}
                 >
                   {log.time}ms
                 </span>
@@ -832,41 +855,37 @@ export default function Maplibre() {
 
       <div className="absolute bottom-4 right-4 z-[9999] flex flex-col items-end gap-2">
         <div
-          className={`text-xs font-semibold px-2 py-1 rounded-md border shadow-sm ${
-            themeMode === "dark"
+          className={`text-xs font-semibold px-2 py-1 rounded-md border shadow-sm ${themeMode === "dark"
               ? "bg-black/60 text-white border-white/10"
               : "bg-white/90 text-gray-900 border-black/10"
-          }`}
+            }`}
         >
           Zoom {zoomLevel}
         </div>
 
         <div
-          className={`flex flex-col overflow-hidden rounded-lg border shadow-md ${
-            themeMode === "dark"
+          className={`flex flex-col overflow-hidden rounded-lg border shadow-md ${themeMode === "dark"
               ? "border-white/20 bg-black/60"
               : "border-black/10 bg-white/90"
-          }`}
+            }`}
         >
           <button
             type="button"
             onClick={zoomIn}
-            className={`w-10 h-10 text-lg leading-none ${
-              themeMode === "dark"
+            className={`w-10 h-10 text-lg leading-none ${themeMode === "dark"
                 ? "text-white hover:bg-white/10"
                 : "text-gray-900 hover:bg-gray-100"
-            }`}
+              }`}
           >
             +
           </button>
           <button
             type="button"
             onClick={zoomOut}
-            className={`w-10 h-10 text-lg leading-none border-t ${
-              themeMode === "dark"
+            className={`w-10 h-10 text-lg leading-none border-t ${themeMode === "dark"
                 ? "text-white border-white/20 hover:bg-white/10"
                 : "text-gray-900 border-black/10 hover:bg-gray-100"
-            }`}
+              }`}
           >
             -
           </button>
@@ -876,4 +895,34 @@ export default function Maplibre() {
       <div ref={mapContainer} className="h-screen w-full" />
     </>
   );
+}
+
+function lngLatToTile(lng, lat, zoom) {
+  const x = Math.floor(((lng + 180) / 360) * Math.pow(2, zoom));
+  const y = Math.floor(
+    ((1 -
+      Math.log(
+        Math.tan((lat * Math.PI) / 180) +
+        1 / Math.cos((lat * Math.PI) / 180)
+      ) /
+      Math.PI) /
+      2) *
+    Math.pow(2, zoom)
+  );
+  return { x, y };
+}
+
+function getVisibleTiles(bounds, zoom) {
+  const ne = lngLatToTile(bounds.getEast(), bounds.getNorth(), zoom);
+  const sw = lngLatToTile(bounds.getWest(), bounds.getSouth(), zoom);
+
+  const tiles = [];
+
+  for (let x = sw.x; x <= ne.x; x++) {
+    for (let y = ne.y; y <= sw.y; y++) {
+      tiles.push({ x, y, z: zoom });
+    }
+  }
+
+  return tiles;
 }
