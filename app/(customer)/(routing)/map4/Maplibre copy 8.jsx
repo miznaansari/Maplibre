@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import Supercluster from "supercluster";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -29,42 +29,15 @@ export default function MapComponent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState([]);
   const [showSearchOptions, setShowSearchOptions] = useState(false);
-  const [mapProvider, setMapProvider] = useState("cart");
   const [themeMode, setThemeMode] = useState("light");
   const [zoomLevel, setZoomLevel] = useState(10);
 
   const API_KEY = process.env.NEXT_PUBLIC_OLAMAP_API_KEY;
 
-  const styleURL = useMemo(() => {
-    if (mapProvider === "ola") {
-      return themeMode === "dark"
-        ? `https://api.olamaps.io/tiles/vector/v1/styles/default-dark-standard/style.json?api_key=${API_KEY}`
-        : `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${API_KEY}`;
-    }
-
-    const tileUrl =
-      themeMode === "dark"
-        ? "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-        : "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
-
-    return {
-      version: 8,
-      sources: {
-        carto: {
-          type: "raster",
-          tiles: [tileUrl],
-          tileSize: 256,
-        },
-      },
-      layers: [
-        {
-          id: "carto-base",
-          type: "raster",
-          source: "carto",
-        },
-      ],
-    };
-  }, [mapProvider, themeMode, API_KEY]);
+  const styleURL =
+    themeMode === "dark"
+      ? `https://api.olamaps.io/tiles/vector/v1/styles/default-dark-standard/style.json?api_key=${API_KEY}`
+      : `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${API_KEY}`;
 
   const logEvent = (log) => {
     setApiLogs((prev) => {
@@ -430,8 +403,7 @@ export default function MapComponent() {
       const bounds = map.getBounds();
       const zoom = Math.floor(map.getZoom());
 
-      // Preload a small ring around the current viewport so nearby pans are instant.
-      const tiles = getVisibleTiles(bounds, zoom, 1);
+      const tiles = getVisibleTiles(bounds, zoom);
       const allFeatures = [];
 
       await Promise.all(
@@ -504,9 +476,8 @@ export default function MapComponent() {
       center: [77.391, 28.6139],
       zoom: 10,
       transformRequest: (url) => {
-        if (url.includes("api.olamaps.io") && !url.includes("api_key=")) {
-          const sep = url.includes("?") ? "&" : "?";
-          return { url: `${url}${sep}api_key=${API_KEY}` };
+        if (url.includes("api.olamaps.io")) {
+          return { url: `${url}&api_key=${API_KEY}` };
         }
         return { url };
       },
@@ -654,8 +625,15 @@ export default function MapComponent() {
   const onSearchClick = async () => {
     const options = buildSearchOptions(allFeaturesRef.current, searchQuery);
     setSearchOptions(options);
-    // Only navigate to cafe/city/state from dropdown selection.
-    // Search button should navigate based on typed text geocoding.
+
+    if (options.length) {
+      const exact = options.find(
+        (option) => normalizeSearch(option.label) === normalizeSearch(searchQuery)
+      );
+
+      onSelectOption(exact || options[0]);
+      return;
+    }
 
     const geocoded = await geocodeSearchQuery(searchQuery);
     if (!geocoded || !mapRef.current) {
@@ -769,8 +747,8 @@ export default function MapComponent() {
         <div
           ref={searchContainerRef}
           className={`relative isolate z-[30] rounded-lg border shadow-sm backdrop-blur-md p-2 ${themeMode === "dark"
-            ? "bg-black/60 border-white/15"
-            : "bg-white/85 border-black/10"
+              ? "bg-black/60 border-white/15"
+              : "bg-white/85 border-black/10"
             }`}
         >
           <div className="flex items-center gap-2">
@@ -781,16 +759,16 @@ export default function MapComponent() {
               onFocus={() => setShowSearchOptions(true)}
               placeholder="Search cafe, city, state"
               className={`w-full text-base sm:text-sm px-2 py-1.5 rounded-md outline-none border ${themeMode === "dark"
-                ? "bg-black/30 border-white/20 text-white placeholder:text-white/60"
-                : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"
+                  ? "bg-black/30 border-white/20 text-white placeholder:text-white/60"
+                  : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"
                 }`}
             />
             <button
               type="button"
               onClick={onSearchClick}
               className={`text-xs sm:text-sm px-2 py-1.5 rounded-md border font-medium ${themeMode === "dark"
-                ? "bg-white/10 border-white/20 text-white"
-                : "bg-gray-100 border-gray-300 text-gray-900"
+                  ? "bg-white/10 border-white/20 text-white"
+                  : "bg-gray-100 border-gray-300 text-gray-900"
                 }`}
             >
               Search
@@ -799,8 +777,8 @@ export default function MapComponent() {
               type="button"
               onClick={onLocateMe}
               className={`text-xs sm:text-sm px-2 py-1.5 rounded-md border font-medium ${themeMode === "dark"
-                ? "bg-white/10 border-white/20 text-white"
-                : "bg-gray-100 border-gray-300 text-gray-900"
+                  ? "bg-white/10 border-white/20 text-white"
+                  : "bg-gray-100 border-gray-300 text-gray-900"
                 }`}
             >
               GPS
@@ -809,8 +787,8 @@ export default function MapComponent() {
               type="button"
               onClick={toggleTheme}
               className={`text-xs sm:text-sm px-2 py-1.5 rounded-md border font-medium ${themeMode === "dark"
-                ? "bg-white/10 border-white/20 text-white"
-                : "bg-gray-100 border-gray-300 text-gray-900"
+                  ? "bg-white/10 border-white/20 text-white"
+                  : "bg-gray-100 border-gray-300 text-gray-900"
                 }`}
             >
               {themeMode === "dark" ? "Light" : "Dark"}
@@ -820,8 +798,8 @@ export default function MapComponent() {
           {showSearchOptions && searchOptions.length > 0 && (
             <div
               className={`absolute left-2 right-2 top-[calc(100%+6px)] rounded-md border shadow-lg overflow-hidden z-[10040] ${themeMode === "dark"
-                ? "bg-black/90 border-white/15"
-                : "bg-white border-gray-200"
+                  ? "bg-black/90 border-white/15"
+                  : "bg-white border-gray-200"
                 }`}
             >
               {searchOptions.map((option) => (
@@ -830,8 +808,8 @@ export default function MapComponent() {
                   type="button"
                   onClick={() => onSelectOption(option)}
                   className={`w-full text-left px-3 py-2 text-xs sm:text-sm border-b last:border-b-0 ${themeMode === "dark"
-                    ? "text-white border-white/10 hover:bg-white/10"
-                    : "text-gray-900 border-gray-100 hover:bg-gray-50"
+                      ? "text-white border-white/10 hover:bg-white/10"
+                      : "text-gray-900 border-gray-100 hover:bg-gray-50"
                     }`}
                 >
                   <span className="font-medium">{option.label}</span>
@@ -847,8 +825,8 @@ export default function MapComponent() {
             <div
               key={log.id}
               className={`min-w-max whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded-md text-[10px] sm:text-xs font-mono backdrop-blur-md border shadow-sm ${themeMode === "dark"
-                ? "bg-black/60 text-white border-white/10"
-                : "bg-white/85 text-gray-800 border-black/10"
+                  ? "bg-black/60 text-white border-white/10"
+                  : "bg-white/85 text-gray-800 border-black/10"
                 }`}
             >
               <span
@@ -888,48 +866,11 @@ export default function MapComponent() {
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-4 z-[9999]">
-        <div
-          className={`p-1 rounded-xl border shadow-md flex items-center gap-1 ${
-            themeMode === "dark"
-              ? "bg-black/60 border-white/20"
-              : "bg-white/90 border-black/10"
-          }`}
-        >
-          <button
-            type="button"
-            onClick={() => setMapProvider("cart")}
-            className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg font-medium transition ${
-              mapProvider === "cart"
-                ? "bg-blue-500 text-white"
-                : themeMode === "dark"
-                  ? "text-white hover:bg-white/10"
-                  : "text-gray-900 hover:bg-gray-100"
-            }`}
-          >
-            Cart
-          </button>
-          <button
-            type="button"
-            onClick={() => setMapProvider("ola")}
-            className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg font-medium transition ${
-              mapProvider === "ola"
-                ? "bg-blue-500 text-white"
-                : themeMode === "dark"
-                  ? "text-white hover:bg-white/10"
-                  : "text-gray-900 hover:bg-gray-100"
-            }`}
-          >
-            Ola
-          </button>
-        </div>
-      </div>
-
       <div className="absolute bottom-4 right-4 z-[9999] flex flex-col items-end gap-2">
         <div
           className={`text-xs font-semibold px-2 py-1 rounded-md border shadow-sm ${themeMode === "dark"
-            ? "bg-black/60 text-white border-white/10"
-            : "bg-white/90 text-gray-900 border-black/10"
+              ? "bg-black/60 text-white border-white/10"
+              : "bg-white/90 text-gray-900 border-black/10"
             }`}
         >
           Zoom {zoomLevel}
@@ -937,16 +878,16 @@ export default function MapComponent() {
 
         <div
           className={`flex flex-col overflow-hidden rounded-lg border shadow-md ${themeMode === "dark"
-            ? "border-white/20 bg-black/60"
-            : "border-black/10 bg-white/90"
+              ? "border-white/20 bg-black/60"
+              : "border-black/10 bg-white/90"
             }`}
         >
           <button
             type="button"
             onClick={zoomIn}
             className={`w-10 h-10 text-lg leading-none ${themeMode === "dark"
-              ? "text-white hover:bg-white/10"
-              : "text-gray-900 hover:bg-gray-100"
+                ? "text-white hover:bg-white/10"
+                : "text-gray-900 hover:bg-gray-100"
               }`}
           >
             +
@@ -955,8 +896,8 @@ export default function MapComponent() {
             type="button"
             onClick={zoomOut}
             className={`w-10 h-10 text-lg leading-none border-t ${themeMode === "dark"
-              ? "text-white border-white/20 hover:bg-white/10"
-              : "text-gray-900 border-black/10 hover:bg-gray-100"
+                ? "text-white border-white/20 hover:bg-white/10"
+                : "text-gray-900 border-black/10 hover:bg-gray-100"
               }`}
           >
             -
@@ -984,20 +925,14 @@ function lngLatToTile(lng, lat, zoom) {
   return { x, y };
 }
 
-function getVisibleTiles(bounds, zoom, padding = 0) {
+function getVisibleTiles(bounds, zoom) {
   const ne = lngLatToTile(bounds.getEast(), bounds.getNorth(), zoom);
   const sw = lngLatToTile(bounds.getWest(), bounds.getSouth(), zoom);
 
   const tiles = [];
-  const maxIndex = Math.pow(2, zoom) - 1;
 
-  const startX = Math.max(0, sw.x - padding);
-  const endX = Math.min(maxIndex, ne.x + padding);
-  const startY = Math.max(0, ne.y - padding);
-  const endY = Math.min(maxIndex, sw.y + padding);
-
-  for (let x = startX; x <= endX; x++) {
-    for (let y = startY; y <= endY; y++) {
+  for (let x = sw.x; x <= ne.x; x++) {
+    for (let y = ne.y; y <= sw.y; y++) {
       tiles.push({ x, y, z: zoom });
     }
   }
