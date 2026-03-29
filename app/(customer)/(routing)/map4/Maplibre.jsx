@@ -758,7 +758,7 @@ export default function MapComponent() {
               onKeyDown={onSearchKeyDown}
               onFocus={() => setShowSearchOptions(true)}
               placeholder="Search cafe, city, state"
-              className={`w-full text-xs sm:text-sm px-2 py-1.5 rounded-md outline-none border ${themeMode === "dark"
+              className={`w-full text-base sm:text-sm px-2 py-1.5 rounded-md outline-none border ${themeMode === "dark"
                   ? "bg-black/30 border-white/20 text-white placeholder:text-white/60"
                   : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"
                 }`}
