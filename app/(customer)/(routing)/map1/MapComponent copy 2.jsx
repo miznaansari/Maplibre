@@ -231,7 +231,7 @@ export default function MapComponent() {
   const [cafes, setCafes] = useState([]);
   const [apiLogs, setApiLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState("light");
+  const [theme, setTheme] = useState("dark");
   const [search, setSearch] = useState("");
   const [filtered, setFiltered] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -291,96 +291,109 @@ export default function MapComponent() {
     }
   };
   return (
-    <div
-      className={`relative w-full h-[100dvh] ${
-        theme === "dark" ? "bg-zinc-950" : "bg-slate-100"
-      }`}
-    >
-      <div className="absolute top-3 left-3 right-3 z-[3000] sm:right-auto sm:max-w-[360px] flex flex-col gap-2 pointer-events-auto">
-        <div
-          className={`rounded-2xl p-2 border shadow-xl backdrop-blur-xl ${
-            theme === "dark"
-              ? "bg-zinc-900/85 border-white/10"
-              : "bg-white/90 border-slate-200"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <div
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border w-full ${
-                theme === "dark"
-                  ? "bg-zinc-800/80 border-white/10"
-                  : "bg-slate-50 border-slate-300"
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={`w-4 h-4 ${
-                  theme === "dark" ? "text-white/60" : "text-slate-500"
-                }`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"
-                />
-              </svg>
+    <div className="relative w-full h-[100dvh]">
+      {/* 🔥 API DEBUG OVERLAY */}
+      <div className="absolute top-4 left-4 z-[3000] space-y-2">
+        {apiLogs.map((log) => (
+     <div
+  key={log.id}
+  className={`px-3 py-1 rounded-md text-xs font-mono shadow-lg backdrop-blur-md border
 
-              <input
-                type="text"
-                placeholder="Search cafes..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className={`w-full bg-transparent outline-none text-sm ${
-                  theme === "dark"
-                    ? "text-white placeholder:text-white/50"
-                    : "text-slate-900 placeholder:text-slate-500"
-                }`}
-              />
+    ${log.status === "pending" && "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"}
+    ${log.status === "success" && "bg-green-500/20 text-green-300 border-green-500/30"}
+    ${log.status === "error" && "bg-red-500/20 text-red-300 border-red-500/30"}
 
-              {search && (
-                <button
-                  onClick={() => {
-                    setSearch("");
-                    setFiltered([]);
-                  }}
-                  className={`transition text-sm ${
-                    theme === "dark"
-                      ? "text-white/50 hover:text-white"
-                      : "text-slate-400 hover:text-slate-700"
-                  }`}
-                >
-                  ✕
-                </button>
-              )}
+    ${log.status === "cache-hit" && "bg-blue-500/20 text-blue-300 border-blue-500/30"}
+    ${log.status === "cache-miss" && "bg-purple-500/20 text-purple-300 border-purple-500/30"}
+  `}
+>
+            {log.url} → {log.status}
+            {log.time && ` (${log.time}ms)`}
+          </div>
+        ))}
+      </div>
+      {/* 🔥 GEN-Z LOADER */}
+      {loading && (
+        <div className="absolute inset-0 z-[2000] flex items-center justify-center backdrop-blur-md bg-black/50 transition-opacity duration-500">
+
+          <div className="flex flex-col items-center gap-4">
+
+            {/* Glow Spinner */}
+            <div className="w-14 h-14 rounded-full border-4 border-[#0ea5e9]/30 border-t-[#0ea5e9] animate-spin shadow-[0_0_40px_#0ea5e9]" />
+
+            <p className="text-white text-sm tracking-wide animate-pulse">
+              Finding cafes near you...
+            </p>
+
+            {/* Pulse dots */}
+            <div className="flex gap-1">
+              <div className="w-2 h-2 bg-white rounded-full animate-bounce" />
+              <div className="w-2 h-2 bg-white rounded-full animate-bounce delay-150" />
+              <div className="w-2 h-2 bg-white rounded-full animate-bounce delay-300" />
             </div>
 
-            <button
-              onClick={toggleTheme}
-              className={`flex items-center justify-center p-2.5 rounded-xl border shadow-sm transition-all ${
-                theme === "dark"
-                  ? "bg-zinc-800 text-white border-white/10 hover:bg-zinc-700"
-                  : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-              }`}
+          </div>
+        </div>
+      )}
+
+
+      {/* 🔍 SEARCH */}
+      <div className="absolute top-4 left-4 z-[1000] w-[340px]">
+        <div
+          className="relative bg-[#0f0f0f]/80 backdrop-blur-xl rounded-2xl 
+    shadow-[0_8px_40px_rgba(0,0,0,0.5)] border border-white/10 p-2
+    transition-all duration-300"
+        >
+          {/* 🔍 Search Bar */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-full 
+    bg-white/5 border border-white/10 focus-within:border-blue-400/50
+    focus-within:shadow-[0_0_15px_rgba(14,165,233,0.3)] transition">
+
+            {/* Icon */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-4 h-4 text-white/50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              {theme === "dark" ? (
-                <MoonIcon className="w-5 h-5 text-blue-400" />
-              ) : (
-                <SunIcon className="w-5 h-5 text-amber-500" />
-              )}
-            </button>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"
+              />
+            </svg>
+
+            {/* Input */}
+            <input
+              type="text"
+              placeholder="Search cafes..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-white/40"
+            />
+
+            {/* ❌ Clear */}
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setFiltered([]);
+                }}
+                className="text-white/40 hover:text-white transition text-sm"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
+          {/* 🔽 Dropdown */}
           {filtered.length > 0 && (
             <div
-              className={`mt-2 max-h-[220px] overflow-y-auto rounded-xl border divide-y ${
-                theme === "dark"
-                  ? "bg-zinc-800/90 border-white/10 divide-white/10"
-                  : "bg-white border-slate-200 divide-slate-100"
-              }`}
+              className="mt-2 max-h-[220px] overflow-y-auto rounded-xl 
+        bg-white/5 border border-white/10 backdrop-blur-md
+        divide-y divide-white/5 animate-in fade-in slide-in-from-top-2 duration-200"
             >
               {filtered.map((cafe) => (
                 <div
@@ -390,20 +403,15 @@ export default function MapComponent() {
                     setSearch("");
                     setFiltered([]);
                   }}
-                  className={`px-3 py-2 cursor-pointer text-sm flex items-center justify-between transition-all duration-150 ${
-                    theme === "dark"
-                      ? "text-white hover:bg-white/10"
-                      : "text-slate-900 hover:bg-slate-50"
-                  }`}
+                  className="px-3 py-2 cursor-pointer text-sm text-white 
+            flex items-center justify-between
+            hover:bg-white/10 active:scale-[0.98] transition-all duration-150"
                 >
+                  {/* Name */}
                   <span className="truncate">{cafe.name}</span>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full ${
-                      theme === "dark"
-                        ? "text-blue-300 bg-blue-500/15"
-                        : "text-blue-700 bg-blue-100"
-                    }`}
-                  >
+
+                  {/* Small badge */}
+                  <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
                     Cafe
                   </span>
                 </div>
@@ -411,74 +419,25 @@ export default function MapComponent() {
             </div>
           )}
         </div>
-
-        <div className="flex flex-row sm:flex-col gap-1 overflow-x-auto sm:overflow-x-hidden sm:max-h-[180px] sm:overflow-y-auto">
-          {apiLogs.map((log) => (
-            <div
-              key={log.id}
-              className={`min-w-max whitespace-nowrap px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-mono border shadow-sm backdrop-blur-md ${
-                log.status === "pending"
-                  ? theme === "dark"
-                    ? "bg-yellow-500/20 text-yellow-200 border-yellow-500/30"
-                    : "bg-yellow-100 text-yellow-700 border-yellow-300"
-                  : ""
-              }
-              ${
-                log.status === "success"
-                  ? theme === "dark"
-                    ? "bg-green-500/20 text-green-200 border-green-500/30"
-                    : "bg-green-100 text-green-700 border-green-300"
-                  : ""
-              }
-              ${
-                log.status === "error"
-                  ? theme === "dark"
-                    ? "bg-red-500/20 text-red-200 border-red-500/30"
-                    : "bg-red-100 text-red-700 border-red-300"
-                  : ""
-              }
-              ${
-                log.status === "cache-hit"
-                  ? theme === "dark"
-                    ? "bg-blue-500/20 text-blue-200 border-blue-500/30"
-                    : "bg-blue-100 text-blue-700 border-blue-300"
-                  : ""
-              }
-              ${
-                log.status === "cache-miss"
-                  ? theme === "dark"
-                    ? "bg-purple-500/20 text-purple-200 border-purple-500/30"
-                    : "bg-purple-100 text-purple-700 border-purple-300"
-                  : ""
-              }`}
-            >
-              {log.url} → {log.status}
-              {log.time && ` (${log.time}ms)`}
-            </div>
-          ))}
-        </div>
       </div>
-
-      {loading && (
-        <div
-          className={`absolute inset-0 z-[2000] flex items-center justify-center backdrop-blur-md transition-opacity duration-500 ${
-            theme === "dark" ? "bg-black/45" : "bg-white/45"
-          }`}
+      <div className="absolute top-6 right-7 z-[1000]">
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#111]/90 backdrop-blur-md text-white border border-white/10 shadow-lg hover:scale-105 transition-all duration-300"
         >
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-14 h-14 rounded-full border-4 border-[#0ea5e9]/30 border-t-[#0ea5e9] animate-spin shadow-[0_0_30px_#0ea5e9]" />
-            <p
-              className={`text-sm tracking-wide animate-pulse ${
-                theme === "dark" ? "text-white" : "text-slate-700"
-              }`}
-            >
-              Finding cafes near you...
-            </p>
-          </div>
-        </div>
-      )}
-
-      <div className="absolute top-4 right-4 z-[1000]" />
+          {theme === "dark" ? (
+            <>
+              <MoonIcon className="w-5 h-5 text-blue-400" />
+              {/* <span className="text-sm">Dark</span> */}
+            </>
+          ) : (
+            <>
+              <SunIcon className="w-5 h-5 text-yellow-400" />
+              {/* <span className="text-sm">Light</span> */}
+            </>
+          )}
+        </button>
+      </div>
 
       <MapContainer
         center={[22.9734, 78.6569]}
