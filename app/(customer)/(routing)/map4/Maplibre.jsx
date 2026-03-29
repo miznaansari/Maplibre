@@ -11,8 +11,10 @@ export default function MapComponent() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const popupRef = useRef(null);
+  const debounceRef = useRef(null);
   const clusterRef = useRef(null);
   const markersRef = useRef(new Map());
+  const isMounted = useRef(false);
 
   const [apiLogs, setApiLogs] = useState([]);
 
@@ -20,23 +22,17 @@ export default function MapComponent() {
 
   const styleURL = `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${API_KEY}`;
 
-  ////////////////////////////////////////////////////////////
-  // 🔥 LOG SYSTEM
-  ////////////////////////////////////////////////////////////
   const logEvent = (log) => {
     setApiLogs((prev) => {
       const newLog = {
         id: Date.now() + Math.random(),
         ...log,
       };
-      addLog(newLog).catch(console.error);
+      addLog(newLog).catch(() => {});
       return [newLog, ...prev].slice(0, 10);
     });
   };
 
-  ////////////////////////////////////////////////////////////
-  // 🟢 UNCLUSTER MARKER
-  ////////////////////////////////////////////////////////////
   const createMarkerEl = (image) => {
     const el = document.createElement("div");
 
@@ -44,7 +40,7 @@ export default function MapComponent() {
       <div style="
         width:42px;
         height:42px;
-        border-radius:50%;
+        border-radius:10px;
         border:3px solid #22c55e;
         padding:2px;
         background:white;
@@ -55,7 +51,7 @@ export default function MapComponent() {
           style="
             width:100%;
             height:100%;
-            border-radius:50%;
+            border-radius:8px;
             object-fit:cover;
           "
         />
@@ -65,9 +61,6 @@ export default function MapComponent() {
     return el;
   };
 
-  ////////////////////////////////////////////////////////////
-  // 🔵 CLUSTER MARKER
-  ////////////////////////////////////////////////////////////
   const getClusterSize = (count) => {
     if (count >= 300) return 90;
     if (count >= 200) return 75;
@@ -85,7 +78,7 @@ export default function MapComponent() {
       <div style="
         width:${size}px;
         height:${size}px;
-        border-radius:50%;
+        border-radius:12px;
         background:white;
         border:3px solid #3b82f6;
         display:grid;
@@ -127,11 +120,8 @@ export default function MapComponent() {
     return el;
   };
 
-  ////////////////////////////////////////////////////////////
-  // 🔁 UPDATE MARKERS (IMPORTANT OPTIMIZATION)
-  ////////////////////////////////////////////////////////////
   const updateMarkers = (map) => {
-      if (!map || !map.isStyleLoaded()) return;
+    if (!map || !map.isStyleLoaded()) return;
     if (!clusterRef.current) return;
 
     const bounds = map.getBounds();
@@ -179,71 +169,71 @@ export default function MapComponent() {
             map.easeTo({ center: [lng, lat], zoom });
           };
         } else {
-  el = createMarkerEl(props.image);
+          el = createMarkerEl(props.image);
 
-  el.onclick = (e) => {
-    e.stopPropagation();
+          el.onclick = (e) => {
+            e.stopPropagation();
 
-    // remove old popup
-    if (popupRef.current) {
-      popupRef.current.remove();
-    }
+            if (popupRef.current) {
+              popupRef.current.remove();
+            }
 
-    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+            const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 
-    const popup = new maplibregl.Popup({
-      offset: 25,
-      closeButton: false,
-    })
-      .setLngLat([lng, lat])
-      .setHTML(`
-        <div style="
-          width:220px;
-          border-radius:14px;
-          overflow:hidden;
-          font-family:system-ui;
-        ">
-          <img 
-            src="${props.image}" 
-            style="width:100%;height:120px;object-fit:cover"
-          />
+            const popup = new maplibregl.Popup({
+              offset: 25,
+              closeButton: false,
+            })
+              .setLngLat([lng, lat])
+              .setHTML(`
+                <div style="
+                  width:220px;
+                  border-radius:14px;
+                  overflow:hidden;
+                  font-family:system-ui;
+                ">
+                  <img 
+                    src="${props.image}" 
+                    style="width:100%;height:120px;object-fit:cover"
+                  />
 
-          <div style="padding:10px">
-            <h4 style="
-              margin:0;
-              font-size:14px;
-              font-weight:600;
-              color:#111;
-            ">
-              ${props.name || "Cafe"}
-            </h4>
+                  <div style="padding:10px">
+                    <h4 style="
+                      margin:0;
+                      font-size:14px;
+                      font-weight:600;
+                      color:#111;
+                    ">
+                      ${props.name || "Cafe"}
+                    </h4>
 
-            <a 
-              href="${googleMapsUrl}" 
-              target="_blank"
-              style="
-                display:block;
-                margin-top:8px;
-                background:#22c55e;
-                color:white;
-                text-align:center;
-                padding:8px;
-                border-radius:8px;
-                font-size:12px;
-                text-decoration:none;
-                font-weight:600;
-              "
-            >
-              🚀 Get Direction
-            </a>
-          </div>
-        </div>
-      `)
-      .addTo(map);
+                    <a 
+                      href="${googleMapsUrl}" 
+                      target="_blank"
+                      style="
+                        display:block;
+                        margin-top:8px;
+                        background:#22c55e;
+                        color:white;
+                        text-align:center;
+                        padding:8px;
+                        border-radius:8px;
+                        font-size:12px;
+                        text-decoration:none;
+                        font-weight:600;
+                      "
+                    >
+                      🚀 Get Direction
+                    </a>
+                  </div>
+                </div>
+              `)
+              .addTo(map);
 
-    popupRef.current = popup;
-  };
-}
+            popupRef.current = popup;
+          };
+        }
+
         marker = new maplibregl.Marker({ element: el }).setLngLat([
           lng,
           lat,
@@ -258,7 +248,6 @@ export default function MapComponent() {
       }
     });
 
-    // remove old markers
     markersRef.current.forEach((marker, id) => {
       if (!newMarkers.has(id)) marker.remove();
     });
@@ -266,10 +255,9 @@ export default function MapComponent() {
     markersRef.current = newMarkers;
   };
 
-  ////////////////////////////////////////////////////////////
-  // 📡 FETCH + TILE SYSTEM
-  ////////////////////////////////////////////////////////////
   const loadTiles = async (map) => {
+    if (!map || !map.isStyleLoaded()) return;
+
     const bounds = map.getBounds();
     const zoom = Math.floor(map.getZoom());
 
@@ -320,7 +308,6 @@ export default function MapComponent() {
       })
     );
 
-    // 🔥 CREATE CLUSTER
     clusterRef.current = new Supercluster({
       radius: 80,
       maxZoom: 16,
@@ -329,13 +316,11 @@ export default function MapComponent() {
     updateMarkers(map);
   };
 
-  ////////////////////////////////////////////////////////////
-  // 🗺️ MAP INIT
-  ////////////////////////////////////////////////////////////
- useEffect(() => {
-  if (mapRef.current) return; // 🚀 IMPORTANT
+  useEffect(() => {
+    if (mapRef.current || isMounted.current) return;
+    isMounted.current = true;
 
- const map = new maplibregl.Map({
+    const map = new maplibregl.Map({
       container: mapContainer.current,
       style: styleURL,
       center: [77.391, 28.6139],
@@ -348,101 +333,84 @@ export default function MapComponent() {
       },
     });
 
-  mapRef.current = map;
+    mapRef.current = map;
 
-map.on("style.load", () => {
-  console.log("✅ style ready");
+    map.on("load", () => {
+      map.once("idle", async () => {
+        await loadTiles(map);
+      });
+    });
 
-  map.once("idle", async () => {
-    console.log("🔥 map fully idle");
+    map.on("moveend", () => {
+      if (!map.isStyleLoaded()) return;
+      map.once("idle", () => loadTiles(map));
+    });
 
-    await loadTiles(map); // ✅ now safe
-  });
+    map.on("zoom", () => {
+      if (!map.isStyleLoaded()) return;
+      requestAnimationFrame(() => updateMarkers(map));
+    });
 
-  map.on("moveend", () => {
-    if (!map.isStyleLoaded()) return;
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
 
-    map.once("idle", () => loadTiles(map));
-  });
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current.clear();
+      clusterRef.current = null;
+      popupRef.current = null;
+      isMounted.current = false;
+    };
+  }, []);
 
-  map.on("zoom", () => {
-    if (!map.isStyleLoaded()) return;
-
-    requestAnimationFrame(() => updateMarkers(map));
-  });
-});
-  return () => {
-    map.remove();
-    mapRef.current = null; // 🔥 VERY IMPORTANT
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current.clear();
-  };
-}, []);
-
-  ////////////////////////////////////////////////////////////
-  // UI
-  ////////////////////////////////////////////////////////////
-return (
-  <>
-    {/* 🔥 LOG OVERLAY */}
-   <div className="absolute top-2 left-2 z-[9999] flex flex-col gap-1 max-h-[200px] overflow-y-auto max-w-[85vw] sm:max-w-sm">
-      {apiLogs.map((log) => (
-        <div
-          key={log.id}
-          className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] sm:text-xs font-mono
-      bg-white/85 text-gray-800 backdrop-blur-md
-      border border-black/10 shadow-sm"
-        >
-          {/* 🔹 Status Dot */}
-          <span
-            className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full
+  return (
+    <>
+      <div className="absolute top-2 left-2 z-[9999] flex flex-col gap-1 max-h-[200px] overflow-y-auto max-w-[85vw] sm:max-w-sm">
+        {apiLogs.map((log) => (
+          <div
+            key={log.id}
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] sm:text-xs font-mono bg-white/85 text-gray-800 backdrop-blur-md border border-black/10 shadow-sm"
+          >
+            <span
+              className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full
         ${log.status === "pending" && "bg-yellow-500"}
         ${log.status === "success" && "bg-green-500"}
         ${log.status === "error" && "bg-red-500"}
         ${log.status === "cache-hit" && "bg-blue-500"}
         ${log.status === "cache-miss" && "bg-purple-500"}
       `}
-          />
+            />
 
-          {/* 🔹 URL (truncate for mobile) */}
-          {/* <span className="opacity-70 truncate max-w-[90px] sm:max-w-[160px]">
-            {log.url}
-          </span> */}
+            <span className="hidden sm:inline opacity-40">→</span>
 
-          {/* 🔹 Arrow (hidden on mobile) */}
-          <span className="hidden sm:inline opacity-40">→</span>
-
-          {/* 🔹 Status */}
-          <span
-            className={`font-semibold capitalize
+            <span
+              className={`font-semibold capitalize
         ${log.status === "pending" && "text-yellow-700"}
         ${log.status === "success" && "text-green-700"}
         ${log.status === "error" && "text-red-700"}
         ${log.status === "cache-hit" && "text-blue-700"}
         ${log.status === "cache-miss" && "text-purple-700"}
       `}
-          >
-            {log.status.replace("-", " ")}
-          </span>
-
-          {/* 🔹 Time */}
-          {log.time && (
-            <span className="ml-auto text-gray-500 text-[9px] sm:text-[11px]">
-              {log.time}ms
+            >
+              {log.status.replace("-", " ")}
             </span>
-          )}
-        </div>
-      ))}
-    </div>
 
-    <div ref={mapContainer} className="h-screen w-full" />
-  </>
-);
+            {log.time && (
+              <span className="ml-auto text-gray-500 text-[9px] sm:text-[11px]">
+                {log.time}ms
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div ref={mapContainer} className="h-screen w-full" />
+    </>
+  );
 }
 
-//////////////////////////////////////////////////////////////
-// 🔥 TILE UTILS
-//////////////////////////////////////////////////////////////
 function lngLatToTile(lng, lat, zoom) {
   const x = Math.floor(((lng + 180) / 360) * Math.pow(2, zoom));
   const y = Math.floor(
