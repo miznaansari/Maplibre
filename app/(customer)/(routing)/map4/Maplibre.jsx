@@ -14,6 +14,7 @@ export default function MapComponent() {
   const userLocationMarkerRef = useRef(null);
   const clusterRef = useRef(null);
   const markersRef = useRef(new Map());
+  const logsContainerRef = useRef(null);
   const allFeaturesRef = useRef([]);
   const searchQueryRef = useRef("");
   const loadTimeoutRef = useRef(null);
@@ -611,6 +612,15 @@ export default function MapComponent() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!logsContainerRef.current) return;
+    if (typeof window === "undefined") return;
+
+    if (window.innerWidth < 640) {
+      logsContainerRef.current.scrollTo({ left: 0, behavior: "auto" });
+    }
+  }, [apiLogs]);
+
   const onSearchInputChange = (event) => {
     setSearchQuery(event.target.value);
     setShowSearchOptions(true);
@@ -842,7 +852,10 @@ export default function MapComponent() {
           )}
         </div>
 
-        <div className="relative z-[10] flex flex-row sm:flex-col gap-1 max-w-[95vw] sm:max-w-sm overflow-x-auto sm:overflow-x-hidden sm:max-h-[200px] sm:overflow-y-auto pb-1 sm:pb-0">
+        <div
+          ref={logsContainerRef}
+          className="relative z-[10] flex flex-row sm:flex-col gap-1 max-w-[95vw] sm:max-w-sm overflow-x-auto sm:overflow-x-hidden sm:max-h-[200px] sm:overflow-y-auto pb-1 sm:pb-0"
+        >
           {apiLogs.map((log) => (
             <div
               key={log.id}
