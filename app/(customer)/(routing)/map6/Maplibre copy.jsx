@@ -35,16 +35,42 @@ export default function MapComponent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOptions, setSearchOptions] = useState([]);
   const [showSearchOptions, setShowSearchOptions] = useState(false);
+  const [mapProvider, setMapProvider] = useState("cart");
   const [themeMode, setThemeMode] = useState("light");
   const [zoomLevel, setZoomLevel] = useState(10);
 
   const API_KEY = process.env.NEXT_PUBLIC_OLAMAP_API_KEY;
 
   const styleURL = useMemo(() => {
-    return themeMode === "dark"
-      ? `https://api.olamaps.io/tiles/vector/v1/styles/default-dark-standard/style.json?api_key=${API_KEY}`
-      : `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${API_KEY}`;
-  }, [themeMode, API_KEY]);
+    if (mapProvider === "ola") {
+      return themeMode === "dark"
+        ? `https://api.olamaps.io/tiles/vector/v1/styles/default-dark-standard/style.json?api_key=${API_KEY}`
+        : `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${API_KEY}`;
+    }
+
+    const tileUrl =
+      themeMode === "dark"
+        ? "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+        : "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
+
+    return {
+      version: 8,
+      sources: {
+        carto: {
+          type: "raster",
+          tiles: [tileUrl],
+          tileSize: 256,
+        },
+      },
+      layers: [
+        {
+          id: "carto-base",
+          type: "raster",
+          source: "carto",
+        },
+      ],
+    };
+  }, [mapProvider, themeMode, API_KEY]);
 
   const logEvent = (log) => {
     setApiLogs((prev) => {
@@ -57,29 +83,6 @@ export default function MapComponent() {
       return [...prev, newLog]
         .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
         .slice(0, 10);
-    });
-  };
-
-  const hideOlaMarkers = (map) => {
-    const style = map.getStyle();
-    if (!style || !style.layers) return;
-
-    style.layers.forEach((layer) => {
-      const id = layer.id.toLowerCase();
-
-      if (
-        id.includes("poi") ||
-        id.includes("place") ||
-        id.includes("label") ||
-        id.includes("restaurant") ||
-        id.includes("food") ||
-        id.includes("shop") ||
-        id.includes("marker")
-      ) {
-        try {
-          map.setLayoutProperty(layer.id, "visibility", "none");
-        } catch (e) {}
-      }
     });
   };
 
@@ -575,8 +578,6 @@ export default function MapComponent() {
     };
 
     map.on("load", () => {
-      hideOlaMarkers(map);
-
       map.once("idle", async () => {
         await loadTiles(map);
       });
@@ -642,7 +643,6 @@ export default function MapComponent() {
     map.setStyle(styleURL);
 
     map.once("idle", async () => {
-      hideOlaMarkers(map);
       await loadTiles(map);
     });
   }, [styleURL]);
@@ -953,13 +953,38 @@ export default function MapComponent() {
 
       <div className="absolute bottom-4 left-4 z-[9999]">
         <div
-          className={`px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm border shadow-md ${
+          className={`p-1 rounded-xl border shadow-md flex items-center gap-1 ${
             themeMode === "dark"
-              ? "bg-blue-500 text-white border-blue-600"
-              : "bg-blue-500 text-white border-blue-600"
+              ? "bg-black/60 border-white/20"
+              : "bg-white/90 border-black/10"
           }`}
         >
-          Ola Map
+          <button
+            type="button"
+            onClick={() => setMapProvider("cart")}
+            className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg font-medium transition ${
+              mapProvider === "cart"
+                ? "bg-blue-500 text-white"
+                : themeMode === "dark"
+                  ? "text-white hover:bg-white/10"
+                  : "text-gray-900 hover:bg-gray-100"
+            }`}
+          >
+            Cart
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapProvider("ola")}
+            className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg font-medium transition ${
+              mapProvider === "ola"
+                ? "bg-blue-500 text-white"
+                : themeMode === "dark"
+                  ? "text-white hover:bg-white/10"
+                  : "text-gray-900 hover:bg-gray-100"
+            }`}
+          >
+            Ola
+          </button>
         </div>
       </div>
 
