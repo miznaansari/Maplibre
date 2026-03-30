@@ -29,7 +29,7 @@ export default function MapSwitch() {
       icon: SparklesIcon,
     },
     {
-      href: "/map4",
+      href: "/map6",
       label: "Tile",
       icon: Squares2X2Icon,
     },
