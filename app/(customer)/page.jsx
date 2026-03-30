@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  BoltIcon,
   GlobeAsiaAustraliaIcon,
   MapIcon,
   SparklesIcon,
@@ -23,7 +24,38 @@ export default function Page() {
       </p>
 
       {/* 🗺️ Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 w-full max-w-6xl">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6 w-full max-w-7xl">
+        {/* 🆕 Map6 (Two Table IndexedDB + Route Logs) */}
+        <Link
+          href="/map6"
+          className="group col-span-2 md:col-span-1 p-4 md:p-6 rounded-2xl bg-white/10 border border-white/20 
+          hover:bg-white/15 transition-all duration-300 backdrop-blur-xl shadow-xl
+          hover:scale-[1.03] active:scale-[0.98]"
+        >
+          <div className="flex flex-col items-center text-center gap-3 md:gap-4">
+            <div className="p-3 md:p-4 rounded-full bg-white/15 group-hover:bg-white/25 transition">
+              <BoltIcon className="w-6 h-6 md:w-8 md:h-8" />
+            </div>
+
+            <h2 className="text-base md:text-xl font-semibold">
+              Map6 (Latest)
+              <br />
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white text-black">
+                2 Table IndexedDB
+              </span>
+              <br />
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white text-black">
+                Route Status + Dedupe Cafes
+              </span>
+            </h2>
+
+            <p className="text-xs md:text-sm text-white/60 leading-relaxed">
+              Uses <b>Tile API (z, x, y)</b> with visit tracking (success/fail),
+              unique cafe storage, and latest logs shown first.
+            </p>
+          </div>
+        </Link>
+
         {/* 🍃 Leaflet (BBox) */}
         <Link
           href="/map1"
